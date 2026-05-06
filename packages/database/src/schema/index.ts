@@ -5,6 +5,7 @@ export * from './agent-sessions';
 export * from './compression-snapshots';
 export * from './fts';
 export * from './memory-actions';
+export * from './memory-tags';
 export * from './shadow-index';
 export * from './summaries';
 export * from './system-settings';

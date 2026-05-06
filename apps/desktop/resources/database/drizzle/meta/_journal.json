@@ -29,6 +29,13 @@
       "when": 1746537700000,
       "tag": "0003_memory_actions",
       "breakpoints": false
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1746537800000,
+      "tag": "0004_memory_tags",
+      "breakpoints": false
     }
   ]
 }
