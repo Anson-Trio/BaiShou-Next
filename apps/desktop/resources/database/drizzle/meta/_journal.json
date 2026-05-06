@@ -22,6 +22,13 @@
       "when": 1746537600000,
       "tag": "0002_memory_enhancement",
       "breakpoints": false
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1746537700000,
+      "tag": "0003_memory_actions",
+      "breakpoints": false
     }
   ]
 }
