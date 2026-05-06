@@ -7,6 +7,7 @@ export * from './fts';
 export * from './memory-actions';
 export * from './memory-tags';
 export * from './shadow-index';
+export * from './sleep-dreams';
 export * from './summaries';
 export * from './system-settings';
 export * from './vectors';

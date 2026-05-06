@@ -22,35 +22,52 @@
 
 export class TextSegmenter {
   private static _instance: TextSegmenter | null = null;
+  private static _initPromise: Promise<TextSegmenter> | null = null;
+  
   private jieba: any = null;
   private useJieba: boolean = false;
+  private jiebaReady: boolean = false;
 
   private constructor() {
-    this.initJieba();
+    // 构造函数不初始化 Jieba，延迟到 getInstance
   }
 
   public static getInstance(): TextSegmenter {
     if (!TextSegmenter._instance) {
       TextSegmenter._instance = new TextSegmenter();
+      TextSegmenter._initPromise = TextSegmenter._instance.initJieba();
     }
     return TextSegmenter._instance;
   }
 
   /**
+   * 获取初始化完成的 Promise（供异步等待）
+   */
+  public static getInitPromise(): Promise<TextSegmenter> {
+    if (!TextSegmenter._initPromise) {
+      TextSegmenter._initPromise = TextSegmenter.getInstance().initJieba();
+    }
+    return TextSegmenter._initPromise;
+  }
+
+  /**
    * 尝试初始化 Jieba
    */
-  private async initJieba(): Promise<void> {
+  private async initJieba(): Promise<TextSegmenter> {
     try {
       // 尝试动态导入 nodejieba
       const nodejieba = await import('nodejieba');
       this.jieba = nodejieba.default || nodejieba;
       this.useJieba = true;
+      this.jiebaReady = true;
       console.info('[TextSegmenter] Jieba 中文分词已就绪');
     } catch (e) {
       // Jieba 未安装，使用 fallback
       this.useJieba = false;
+      this.jiebaReady = true;
       console.warn('[TextSegmenter] nodejieba 未安装，中文分词将使用简单字符分割');
     }
+    return this;
   }
 
   /**
@@ -167,10 +184,17 @@ export class TextSegmenter {
   }
 
   /**
-   * 判断是否已加载 Jieba
+   * 判断 Jieba 是否已就绪（初始化完成）
    */
   public isJiebaAvailable(): boolean {
-    return this.useJieba;
+    return this.jiebaReady && this.useJieba;
+  }
+
+  /**
+   * 判断是否已完成初始化
+   */
+  public isReady(): boolean {
+    return this.jiebaReady;
   }
 }
 

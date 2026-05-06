@@ -20,6 +20,7 @@ import { registerDeveloperIPC } from './ipc/developer.ipc'
 import { registerSearchIPC } from './ipc/search.ipc'
 import { registerMemoryFolderIPC } from './ipc/memory-folder.ipc'
 import { registerMemoryActionIPC } from './ipc/memory-action.ipc'
+import { registerDreamsIPC } from './ipc/dreams.ipc'
 import { installDatabaseSchema, SettingsRepository, connectionManager } from '@baishou/database'
 import { getAppDb } from './db'
 import { HotkeyService } from './services/hotkey.service'
@@ -124,6 +125,7 @@ async function completeFullBootstrap() {
     registerSearchIPC();
     registerMemoryFolderIPC();
     registerMemoryActionIPC();
+    registerDreamsIPC();
 
     // 3. 这里的逻辑在引导完成后或者已有配置时执行
     if (mainWindow) {

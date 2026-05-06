@@ -10,7 +10,7 @@
  * 融合算法：Reciprocal Rank Fusion (RRF)
  */
 
-import { sql } from 'drizzle-orm';
+import { sql, like, inArray } from 'drizzle-orm';
 import {
   IMemorySearchResult,
   MemorySearchConfig,
@@ -58,13 +58,15 @@ export class MemorySearchService {
       Object.assign(fullConfig, modeWeights);
     }
 
-    // ── Step 1: 并行执行四路搜索 ──
-    const [keywordResults, tagResults, vectorResults, graphResults] = await Promise.all([
+    // ── Step 1: 并行执行前三路搜索 ──
+    const [keywordResults, tagResults, vectorResults] = await Promise.all([
       this.searchByKeyword(queryText, fullConfig),
       this.searchByTags(queryText, fullConfig),
       this.searchByVector(queryVector, fullConfig),
-      this.propagateFromGraph(queryVector, keywordResults, vectorResults, fullConfig),
     ]);
+
+    // ── Step 2: 行动图传播（依赖前三路结果） ──
+    const graphResults = await this.propagateFromGraph(queryVector, keywordResults, vectorResults, fullConfig);
 
     // ── Step 2: RRF 融合 ──
     const rankedLists = [
@@ -151,7 +153,7 @@ export class MemorySearchService {
     const matchedTags = await this.database
       .select({ id: memoryTagsTable.id, name: memoryTagsTable.name })
       .from(memoryTagsTable)
-      .where(sql`${memoryTagsTable.name} LIKE ${'%' + query + '%'}`)
+      .where(like(memoryTagsTable.name, `%${query}%`))
       .limit(config.topK);
 
     if (matchedTags.length === 0) return [];
@@ -162,7 +164,7 @@ export class MemorySearchService {
     const memoryIds = await this.database
       .select({ memoryId: memoryTagRelationsTable.memoryId })
       .from(memoryTagRelationsTable)
-      .where(sql`${memoryTagRelationsTable.tagId} IN (${tagIds.join(',')})`)
+      .where(inArray(memoryTagRelationsTable.tagId, tagIds))
       .groupBy(memoryTagRelationsTable.memoryId)
       .orderBy(sql`COUNT(*) DESC`)
       .limit(config.topK);
@@ -180,7 +182,7 @@ export class MemorySearchService {
         tags: memoryEmbeddingsTable.tags,
       })
       .from(memoryEmbeddingsTable)
-      .where(sql`${memoryEmbeddingsTable.id} IN (${ids.join(',')})`);
+      .where(inArray(memoryEmbeddingsTable.id, ids));
 
     // 按 ids 顺序保持一致
     const sortedMemories = ids.map(id => memories.find(m => m.id === id)).filter(Boolean);
@@ -307,7 +309,7 @@ export class MemorySearchService {
         title: memoryEmbeddingsTable.title,
       })
       .from(memoryEmbeddingsTable)
-      .where(sql`${memoryEmbeddingsTable.id} IN (${ids.join(',')})`);
+      .where(inArray(memoryEmbeddingsTable.id, ids));
 
     const memoryMap = new Map(memories.map(m => [m.id, m]));
 
@@ -336,11 +338,10 @@ export class MemorySearchService {
   ): Promise<IMemorySearchResult[]> {
     if (sortedIds.length === 0) return [];
 
-    const idsStr = sortedIds.join(',');
     const memories = await this.database
       .select()
       .from(memoryEmbeddingsTable)
-      .where(sql`${memoryEmbeddingsTable.id} IN (${idsStr})`);
+      .where(inArray(memoryEmbeddingsTable.id, sortedIds));
 
     const memoryMap = new Map(memories.map(m => [m.id, m]));
 

@@ -119,4 +119,44 @@ export class MemoryRepository {
       .orderBy(sql`vec_distance_cosine(${memoryEmbeddingsTable.embedding}, ${vectorBuffer}) ASC`)
       .limit(topK);
   }
+
+  /**
+   * 通过关键词搜索记忆（基于标题、内容、标签）
+   * 简单实现：使用 LIKE 查询
+   *
+   * @param keyword 搜索关键词（支持 % 通配符）
+   * @param limit 返回数量限制
+   * @returns 匹配的记忆记录列表
+   */
+  async findByKeyword(keyword: string, limit: number = 5): Promise<Array<{
+    id: number;
+    embeddingId: string;
+    sourceId: string;
+    sourceType: string;
+    title: string;
+    content: string;
+    tags: string;
+  }>> {
+    const likePattern = keyword;
+    
+    return await this.database
+      .select({
+        id: memoryEmbeddingsTable.id,
+        embeddingId: memoryEmbeddingsTable.embeddingId,
+        sourceId: memoryEmbeddingsTable.sourceId,
+        sourceType: memoryEmbeddingsTable.sourceType,
+        title: memoryEmbeddingsTable.title,
+        content: memoryEmbeddingsTable.content,
+        tags: memoryEmbeddingsTable.tags,
+      })
+      .from(memoryEmbeddingsTable)
+      .where(
+        sql`(
+          ${memoryEmbeddingsTable.title} LIKE ${likePattern} OR 
+          ${memoryEmbeddingsTable.content} LIKE ${likePattern} OR 
+          ${memoryEmbeddingsTable.tags} LIKE ${likePattern}
+        )`
+      )
+      .limit(limit);
+  }
 }
