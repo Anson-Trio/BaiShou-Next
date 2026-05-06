@@ -1,4 +1,4 @@
-import { sqliteTable, integer, text, customType } from "drizzle-orm/sqlite-core";
+import { sqliteTable, integer, text, real, customType } from "drizzle-orm/sqlite-core";
 
 const sqliteVecBlob = customType<{ data: Buffer; driverData: Buffer }>({
   dataType() {
@@ -25,5 +25,15 @@ export const memoryEmbeddingsTable = sqliteTable('memory_embeddings', {
   dimension: integer('dimension').notNull(),
   modelId: text('model_id').notNull().default(''),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
-  sourceCreatedAt: integer('source_created_at', { mode: 'timestamp' })
+  sourceCreatedAt: integer('source_created_at', { mode: 'timestamp' }),
+  // --- 新增字段：记忆元数据 ---
+  title: text('title').notNull().default(''),
+  content: text('content').notNull().default(''),
+  contentType: text('content_type').notNull().default('text/plain'),
+  source: text('source').notNull().default('unknown'),
+  importance: real('importance').notNull().default(0.5),
+  credibility: real('credibility').notNull().default(0.5),
+  folderPath: text('folder_path'),
+  tags: text('tags').notNull().default(''),
+  lastAccessedAt: integer('last_accessed_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });

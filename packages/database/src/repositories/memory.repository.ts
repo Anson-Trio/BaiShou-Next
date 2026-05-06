@@ -12,6 +12,15 @@ export interface InsertMemoryPayload {
   metadataJson: string;
   embedding: number[];  // 浮点数组，将在入库前转换为 Buffer
   modelId: string;
+  // --- 新增字段 ---
+  title?: string;
+  content?: string;
+  contentType?: string;
+  source?: 'user_input' | 'ai_response' | 'action_result' | 'unknown';
+  importance?: number;
+  credibility?: number;
+  folderPath?: string | null;
+  tags?: string;
 }
 
 export interface SearchMemoryParams {
@@ -51,6 +60,15 @@ export class MemoryRepository {
       dimension: data.embedding.length,
       modelId: data.modelId,
       createdAt: new Date(),
+      // --- 新增字段（可选，undefined 时走 schema 默认值） ---
+      title: data.title ?? '',
+      content: data.content ?? '',
+      contentType: data.contentType ?? 'text/plain',
+      source: data.source ?? 'unknown',
+      importance: data.importance ?? 0.5,
+      credibility: data.credibility ?? 0.5,
+      folderPath: data.folderPath ?? null,
+      tags: data.tags ?? '',
     }).onConflictDoUpdate({
       target: [memoryEmbeddingsTable.embeddingId],
       set: {
@@ -59,6 +77,15 @@ export class MemoryRepository {
         dimension: data.embedding.length,
         modelId: data.modelId,
         metadataJson: data.metadataJson,
+        // 更新新字段
+        title: data.title ?? '',
+        content: data.content ?? '',
+        contentType: data.contentType ?? 'text/plain',
+        source: data.source ?? 'unknown',
+        importance: data.importance ?? 0.5,
+        credibility: data.credibility ?? 0.5,
+        folderPath: data.folderPath ?? null,
+        tags: data.tags ?? '',
       }
     });
   }

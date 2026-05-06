@@ -15,6 +15,13 @@
       "when": 1775536911817,
       "tag": "0001_chunky_hannibal_king",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1746537600000,
+      "tag": "0002_memory_enhancement",
+      "breakpoints": false
     }
   ]
 }
