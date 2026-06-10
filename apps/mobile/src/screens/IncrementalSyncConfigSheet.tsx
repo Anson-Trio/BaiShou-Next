@@ -10,50 +10,55 @@ import {
 } from 'react-native'
 import { MaterialIcons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
-import type { SyncConfig } from '@baishou/core-mobile'
-import { Input } from '@baishou/ui/native'
+import type { S3SyncConfig } from '@baishou/shared'
+import { Input, Switch } from '@baishou/ui/native'
 import type { useNativeTheme } from '@baishou/ui/native'
 
 type ThemeColors = ReturnType<typeof useNativeTheme>['colors']
 type ThemeTokens = ReturnType<typeof useNativeTheme>['tokens']
 
-export interface DataSyncConfigSheetProps {
+export interface IncrementalSyncConfigSheetProps {
   visible: boolean
-  config: SyncConfig
+  config: S3SyncConfig
   showPassword: boolean
   colors: ThemeColors
   tokens: ThemeTokens
-  onChange: (next: SyncConfig) => void
+  testing?: boolean
+  onChange: (next: S3SyncConfig) => void
   onTogglePassword: () => void
+  onTestConnection: () => void
   onSave: () => void
   onClose: () => void
 }
 
-export const DataSyncConfigSheet: React.FC<DataSyncConfigSheetProps> = ({
+export const IncrementalSyncConfigSheet: React.FC<IncrementalSyncConfigSheetProps> = ({
   visible,
   config,
   showPassword,
   colors,
   tokens,
+  testing = false,
   onChange,
   onTogglePassword,
+  onTestConnection,
   onSave,
   onClose
 }) => {
   const { t } = useTranslation()
+  const target = config.target === 'webdav' ? 'webdav' : 's3'
 
-  const setTarget = (target: SyncConfig['target']) => onChange({ ...config, target })
+  const setTarget = (next: 's3' | 'webdav') => onChange({ ...config, target: next })
 
   const renderTargetCard = (
-    target: SyncConfig['target'],
+    value: 's3' | 'webdav',
     icon: keyof typeof MaterialIcons.glyphMap,
     title: string,
     desc: string
   ) => {
-    const selected = config.target === target
+    const selected = target === value
     return (
       <TouchableOpacity
-        key={target}
+        key={value}
         style={[
           styles.targetCard,
           {
@@ -61,7 +66,7 @@ export const DataSyncConfigSheet: React.FC<DataSyncConfigSheetProps> = ({
             backgroundColor: selected ? colors.primaryLight : colors.bgSurfaceNormal
           }
         ]}
-        onPress={() => setTarget(target)}
+        onPress={() => setTarget(value)}
         activeOpacity={0.8}
       >
         <View style={[styles.targetIcon, { backgroundColor: colors.bgSurface }]}>
@@ -79,16 +84,6 @@ export const DataSyncConfigSheet: React.FC<DataSyncConfigSheetProps> = ({
     )
   }
 
-  const sectionTitle =
-    config.target === 'local'
-      ? t('data_sync.s3_config_title', 'S3 存储配置').replace(
-          'S3',
-          t('data_sync.local_storage', '本地存储')
-        )
-      : config.target === 's3'
-        ? t('data_sync.s3_config_title', 'S3 存储配置')
-        : t('data_sync.webdav_config_title', 'WebDAV 存储配置')
-
   return (
     <Modal
       visible={visible}
@@ -102,83 +97,77 @@ export const DataSyncConfigSheet: React.FC<DataSyncConfigSheetProps> = ({
             <MaterialIcons name="arrow-back" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
           <Text style={[styles.appTitle, { color: colors.textPrimary }]}>
-            {t('data_sync.config_title', '数据备份配置')}
+            {t('data_sync.config_section')}
           </Text>
           <View style={styles.backBtn} />
         </View>
 
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+          <View style={styles.enableRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.enableTitle, { color: colors.textPrimary }]}>
+                {t('data_sync.incremental_sync')}
+              </Text>
+              <Text style={[styles.enableDesc, { color: colors.textSecondary }]}>
+                {t('data_sync.incremental_sync_desc')}
+              </Text>
+            </View>
+            <Switch value={config.enabled} onValueChange={(enabled) => onChange({ ...config, enabled })} />
+          </View>
+
           <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
-            {t('data_sync.select_target_title', '选择备份目标')}
+            {t('data_sync.select_target_title')}
           </Text>
 
           {renderTargetCard(
-            'local',
-            'folder',
-            t('data_sync.target_local', '本地存储'),
-            t('data_sync.local_storage_desc', '直接将备份转储保存在应用所运行设备的本地磁盘中。')
-          )}
-          {renderTargetCard(
             's3',
             'cloud',
-            t('data_sync.target_s3', 'S3 兼容存储'),
-            t('data_sync.s3_storage_desc', '兼容 S3 协议的对象存储服务')
+            t('data_sync.target_s3'),
+            t('data_sync.target_s3_desc')
           )}
           {renderTargetCard(
             'webdav',
             'language',
-            t('data_sync.target_webdav', 'WebDAV'),
-            t('data_sync.webdav_storage_desc', '通用网络文件存储协议')
+            t('data_sync.target_webdav'),
+            t('data_sync.target_webdav_desc')
           )}
 
-          <Text style={[styles.configSectionTitle, { color: colors.textPrimary }]}>
-            {sectionTitle}
-          </Text>
           <View style={[styles.divider, { backgroundColor: colors.borderSubtle }]} />
 
-          {config.target === 'local' && (
-            <Text style={[styles.localHint, { color: colors.textSecondary }]}>
-              {t(
-                'data_sync.local_no_config',
-                '当前模式下产生的数据仅会存放于本地应用目录中，无需输入远程凭据。'
-              )}
-            </Text>
-          )}
-
-          {config.target === 'webdav' && (
+          {target === 'webdav' ? (
             <View style={styles.form}>
               <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
-                {t('data_sync.webdav_url_label', 'WebDAV URL 地址')}
+                {t('data_sync.webdav_url_label')}
               </Text>
               <Input
-                value={config.webdavUrl}
-                onChangeText={(v) => onChange({ ...config, webdavUrl: v })}
+                value={config.webdavUrl || ''}
+                onChangeText={(webdavUrl) => onChange({ ...config, webdavUrl })}
                 autoCapitalize="none"
                 keyboardType="url"
               />
               <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
-                {t('data_sync.webdav_path_label', 'Base Path 子路径')}
+                {t('data_sync.webdav_path_label')}
               </Text>
               <Input
-                value={config.webdavPath}
-                onChangeText={(v) => onChange({ ...config, webdavPath: v })}
+                value={config.path || ''}
+                onChangeText={(path) => onChange({ ...config, path })}
                 autoCapitalize="none"
               />
               <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
-                {t('data_sync.webdav_user_label', 'Username 用户名')}
+                {t('data_sync.webdav_user_label')}
               </Text>
               <Input
-                value={config.webdavUsername}
-                onChangeText={(v) => onChange({ ...config, webdavUsername: v })}
+                value={config.accessKey || ''}
+                onChangeText={(accessKey) => onChange({ ...config, accessKey })}
                 autoCapitalize="none"
               />
               <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
-                {t('data_sync.webdav_password_label', 'Password 密码')}
+                {t('data_sync.webdav_password_label')}
               </Text>
               <View style={styles.passwordRow}>
                 <Input
-                  value={config.webdavPassword}
-                  onChangeText={(v) => onChange({ ...config, webdavPassword: v })}
+                  value={config.secretKey || ''}
+                  onChangeText={(secretKey) => onChange({ ...config, secretKey })}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
                   style={{ flex: 1 }}
@@ -192,59 +181,57 @@ export const DataSyncConfigSheet: React.FC<DataSyncConfigSheetProps> = ({
                 </TouchableOpacity>
               </View>
             </View>
-          )}
-
-          {config.target === 's3' && (
+          ) : (
             <View style={styles.form}>
               <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
-                {t('data_sync.s3_endpoint_label', 'Endpoint 服务地址')}
+                {t('data_sync.s3_endpoint_label')}
               </Text>
               <Input
-                value={config.s3Endpoint}
-                onChangeText={(v) => onChange({ ...config, s3Endpoint: v })}
+                value={config.endpoint || ''}
+                onChangeText={(endpoint) => onChange({ ...config, endpoint })}
                 autoCapitalize="none"
                 keyboardType="url"
               />
               <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
-                {t('data_sync.s3_region_label', 'Region 区域名')}
+                {t('data_sync.s3_region_label')}
               </Text>
               <Input
-                value={config.s3Region}
-                onChangeText={(v) => onChange({ ...config, s3Region: v })}
+                value={config.region || ''}
+                onChangeText={(region) => onChange({ ...config, region })}
                 autoCapitalize="none"
               />
               <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
-                {t('data_sync.s3_bucket_label', 'Bucket 存储桶')}
+                {t('data_sync.s3_bucket_label')}
               </Text>
               <Input
-                value={config.s3Bucket}
-                onChangeText={(v) => onChange({ ...config, s3Bucket: v })}
+                value={config.bucket || ''}
+                onChangeText={(bucket) => onChange({ ...config, bucket })}
                 autoCapitalize="none"
               />
               <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
-                {t('data_sync.s3_path_label', 'Path 子路径')}
+                {t('data_sync.s3_path_label')}
               </Text>
               <Input
-                value={config.s3Path}
-                onChangeText={(v) => onChange({ ...config, s3Path: v })}
+                value={config.path || ''}
+                onChangeText={(path) => onChange({ ...config, path })}
                 autoCapitalize="none"
               />
               <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
-                {t('data_sync.s3_ak_label', 'Access Key (AK)')}
+                {t('data_sync.s3_ak_label')}
               </Text>
               <Input
-                value={config.s3AccessKey}
-                onChangeText={(v) => onChange({ ...config, s3AccessKey: v })}
+                value={config.accessKey || ''}
+                onChangeText={(accessKey) => onChange({ ...config, accessKey })}
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
               />
               <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
-                {t('data_sync.s3_sk_label', 'Secret Key (SK)')}
+                {t('data_sync.s3_sk_label')}
               </Text>
               <View style={styles.passwordRow}>
                 <Input
-                  value={config.s3SecretKey}
-                  onChangeText={(v) => onChange({ ...config, s3SecretKey: v })}
+                  value={config.secretKey || ''}
+                  onChangeText={(secretKey) => onChange({ ...config, secretKey })}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
                   style={{ flex: 1 }}
@@ -262,13 +249,26 @@ export const DataSyncConfigSheet: React.FC<DataSyncConfigSheetProps> = ({
 
           <TouchableOpacity
             style={[
+              styles.secondaryBtn,
+              { borderColor: colors.borderMuted, backgroundColor: colors.bgSurfaceHighest }
+            ]}
+            onPress={onTestConnection}
+            disabled={testing}
+          >
+            <Text style={{ color: colors.textPrimary }}>
+              {testing ? t('data_sync.testing_connection') : t('data_sync.test_connection')}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
               styles.saveBtn,
               { backgroundColor: colors.primary, borderRadius: tokens.radius.md }
             ]}
             onPress={onSave}
           >
             <Text style={{ color: colors.textOnPrimary, fontWeight: '700', fontSize: 16 }}>
-              {t('data_sync.save_config_button', '保存配置')}
+              {t('data_sync.save_config_button')}
             </Text>
           </TouchableOpacity>
         </ScrollView>
@@ -290,6 +290,14 @@ const styles = StyleSheet.create({
   appTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '700' },
   scroll: { flex: 1 },
   scrollContent: { padding: 16, paddingBottom: 40 },
+  enableRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 20
+  },
+  enableTitle: { fontSize: 16, fontWeight: '700', marginBottom: 4 },
+  enableDesc: { fontSize: 13, lineHeight: 18 },
   sectionLabel: {
     fontSize: 13,
     fontWeight: '600',
@@ -314,15 +322,20 @@ const styles = StyleSheet.create({
   },
   targetTitle: { fontSize: 15, fontWeight: '600', marginBottom: 2 },
   targetDesc: { fontSize: 12, lineHeight: 17 },
-  configSectionTitle: { fontSize: 16, fontWeight: '700', marginTop: 20, marginBottom: 8 },
-  divider: { height: StyleSheet.hairlineWidth, marginBottom: 16 },
-  localHint: { fontSize: 14, lineHeight: 22, textAlign: 'center', paddingVertical: 24 },
+  divider: { height: StyleSheet.hairlineWidth, marginVertical: 16 },
   form: { gap: 4 },
   fieldLabel: { fontSize: 13, fontWeight: '600', marginTop: 10, marginBottom: 6 },
   passwordRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   eyeBtn: { padding: 8 },
+  secondaryBtn: {
+    marginTop: 20,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderRadius: 10,
+    borderWidth: 1
+  },
   saveBtn: {
-    marginTop: 28,
+    marginTop: 12,
     paddingVertical: 14,
     alignItems: 'center'
   }
