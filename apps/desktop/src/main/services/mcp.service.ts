@@ -233,9 +233,13 @@ export class McpService {
       try {
         this.httpServer = this.app.listen(port, '127.0.0.1', () => {
           this.isRunning = true
-          logger.info(`[McpService] Server started on http://127.0.0.1:${port}/mcp`)
+          const bound = this.httpServer?.address()
+          const actualPort =
+            typeof bound === 'object' && bound ? bound.port : port
+          logger.info(`[McpService] Server started on http://127.0.0.1:${actualPort}/mcp`)
           resolve()
         })
+        this.httpServer?.once('error', reject)
       } catch (e) {
         logger.error(`[McpService] Failed to start on port ${port}`, e as any)
         reject(e)
