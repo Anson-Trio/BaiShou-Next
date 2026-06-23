@@ -8,7 +8,8 @@ import {
   MdCropSquare,
   MdClose,
   MdFolderShared,
-  MdArrowDropDown
+  MdArrowDropDown,
+  MdWorkspaces
 } from 'react-icons/md'
 import { useTranslation } from 'react-i18next'
 import { isIncrementalSyncReady, buildAgentChatNavigationPath } from '@baishou/shared'
@@ -170,9 +171,11 @@ export const TitleBar: React.FC = () => {
   }
 
   // Tabs logic corresponding to Flutter tab controller
-  const isAgent = location.pathname.startsWith('/agent') || location.pathname.startsWith('/chat')
+  const isCompanionChat = location.pathname.startsWith('/chat')
+  const isAgentWorkspace = location.pathname.startsWith('/agent-workspace')
   const isSettings = location.pathname.startsWith('/settings')
   const isOnboarding = location.pathname.startsWith('/welcome')
+  const isDiaryTab = !isCompanionChat && !isAgentWorkspace && !isSettings
 
   return (
     <div className={`${styles.titleBar} ${isOnboarding ? styles.titleBarOnboarding : ''}`}>
@@ -180,14 +183,14 @@ export const TitleBar: React.FC = () => {
         {!isOnboarding && (
           <div className={styles.tabsContainer}>
             <div
-              className={`${styles.tab} ${!isAgent && !isSettings ? styles.activeTab : ''}`}
+              className={`${styles.tab} ${isDiaryTab ? styles.activeTab : ''}`}
               onClick={() => navigate(resolveDiaryHomePath())}
             >
               <MdAutoStories className={styles.tabIcon} />
               <span>{t('nav.diary', '日记')}</span>
             </div>
             <div
-              className={`${styles.tab} ${isAgent && !isSettings ? styles.activeTab : ''}`}
+              className={`${styles.tab} ${isCompanionChat && !isSettings ? styles.activeTab : ''}`}
               onClick={() => {
                 const saved = readActiveVaultNavigationSnapshot()
                 navigate(saved ? buildAgentChatNavigationPath(saved) : '/chat')
@@ -195,6 +198,13 @@ export const TitleBar: React.FC = () => {
             >
               <MdAutoAwesome className={styles.tabIcon} />
               <span>{t('nav.agent', '伙伴')}</span>
+            </div>
+            <div
+              className={`${styles.tab} ${isAgentWorkspace && !isSettings ? styles.activeTab : ''}`}
+              onClick={() => navigate('/agent-workspace')}
+            >
+              <MdWorkspaces className={styles.tabIcon} />
+              <span>{t('nav.agent_workspace', 'Agent')}</span>
             </div>
           </div>
         )}
