@@ -56,6 +56,8 @@ export * from './CompressionActivityBar'
 export * from './CompressionDivider'
 export * from './ToolResultGroupCard'
 export * from './MessageActionBar'
+export * from './AgentGateCard'
+export * from './AgentGatePartCard'
 
 // 同步组件
 export * from './IncrementalSyncPanel'
