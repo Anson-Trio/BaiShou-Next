@@ -82,14 +82,16 @@ export function useMessageActions({
   /** 编辑后重发：截断消息列表并重新流式生成 */
   const handleResendEdit = async (msg: any, newContent: string) => {
     if (!sessionId || !newContent.trim()) return
+    const trimmed = newContent.trim()
     const epoch = bumpRetryEpoch()
     chat.truncateMessages(msg.id)
+    chat.updateMessageContent(msg.id, trimmed)
     chat.setStreamSessionId(sessionId)
     try {
       await stream.editChat(
         sessionId,
         msg.id,
-        newContent,
+        trimmed,
         model.currentProviderId,
         model.currentModelId,
         undefined,

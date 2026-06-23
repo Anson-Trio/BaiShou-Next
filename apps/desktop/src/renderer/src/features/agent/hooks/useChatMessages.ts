@@ -69,6 +69,7 @@ export interface UseChatMessagesResult {
   optimisticRemove: (optimisticId: string) => void
   setStreamSessionId: (id: string | null) => void
   truncateMessages: (messageId: string) => void
+  updateMessageContent: (messageId: string, newContent: string) => void
   ensureMessageAttachments: (messageId: string, attachments: MockChatAttachment[]) => void
 }
 
@@ -699,6 +700,22 @@ export function useChatMessages(params: UseChatMessagesParams): UseChatMessagesR
     [sessionId, syncFromCache]
   )
 
+  const updateMessageContent = useCallback(
+    (messageId: string, newContent: string) => {
+      const patch = (msg: any) => {
+        if (msg.id !== messageId) return msg
+        return { ...msg, content: newContent }
+      }
+
+      messageCacheRef.current = messageCacheRef.current.map(patch)
+      syncFromCache(roundWindowStartRef.current)
+      if (sessionId) {
+        chatSessionMessageCache.delete(sessionId)
+      }
+    },
+    [sessionId, syncFromCache]
+  )
+
   return {
     messages,
     setMessages,
@@ -711,6 +728,7 @@ export function useChatMessages(params: UseChatMessagesParams): UseChatMessagesR
     optimisticRemove,
     setStreamSessionId,
     truncateMessages,
+    updateMessageContent,
     ensureMessageAttachments
   }
 }

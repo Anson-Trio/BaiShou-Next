@@ -18,6 +18,13 @@ function setupWindowMock() {
 
   const win = (globalThis as any).window || globalThis
   win.electron = { ipcRenderer: mockRenderer }
+  win.api = {
+    agentGate: {
+      onAsked: vi.fn(() => () => {}),
+      onReplied: vi.fn(() => () => {}),
+      reply: vi.fn().mockResolvedValue({ allowed: true })
+    }
+  }
 
   const emit = (channel: string, ...data: any[]) => {
     listeners[channel]?.({} as any, ...data)
@@ -30,6 +37,7 @@ function teardownWindowMock() {
   const win = (globalThis as any).window || globalThis
   if (win) {
     delete win.electron
+    delete win.api
     delete (win as any).__baishou_stream_registered
   }
 }

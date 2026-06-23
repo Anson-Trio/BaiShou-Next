@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
+import type { AgentGateReply, AgentGateRequest } from '@baishou/shared'
 
 export interface ToolExecution {
   name: string
@@ -18,6 +19,8 @@ export interface UseAgentStreamResult {
   activeTool: { name: string; args: any } | null
   completedTools: ToolExecution[]
   error: string | null
+  pendingAgentGate: AgentGateRequest | null
+  isAgentGateReplying: boolean
   saveUserMessage: (
     sessionId: string,
     text: string,
@@ -50,6 +53,13 @@ export interface UseAgentStreamResult {
   ) => Promise<void>
   stopChat: () => void
   reset: () => void
+  beginStreaming: (sessionId: string) => void
+  replyAgentGate: (input: {
+    requestId: string
+    reply: AgentGateReply
+    message?: string
+    selectedOptionIds?: string[]
+  }) => Promise<void>
 }
 
 interface SessionStreamState {
@@ -64,6 +74,8 @@ interface SessionStreamState {
   activeTool: { name: string; args: any } | null
   completedTools: ToolExecution[]
   error: string | null
+  pendingAgentGate: AgentGateRequest | null
+  isAgentGateReplying: boolean
   activeToolStartTime?: number
 }
 
@@ -86,7 +98,9 @@ function getOrCreateSessionState(sessionId: string): SessionStreamState {
       compressionTriggerMessageId: null,
       activeTool: null,
       completedTools: [],
-      error: null
+      error: null,
+      pendingAgentGate: null,
+      isAgentGateReplying: false
     }
   }
   return sessionStates[sessionId]
@@ -286,8 +300,37 @@ export function useAgentStream(currentSessionId?: string): UseAgentStreamResult 
 
     window.addEventListener('baishou:compression-stream-reset', onCompressionStreamReset)
 
+    const onAgentGateAsked = (_: unknown, request: AgentGateRequest) => {
+      if (!request?.sessionId) return
+      updateSessionState(request.sessionId, (state) => {
+        state.pendingAgentGate = request
+        state.isAgentGateReplying = false
+      })
+    }
+
+    const onAgentGateReplied = (
+      _: unknown,
+      payload: { sessionId?: string; requestId?: string }
+    ) => {
+      const sId = payload?.sessionId
+      if (!sId) return
+      updateSessionState(sId, (state) => {
+        if (state.pendingAgentGate?.id === payload.requestId) {
+          state.pendingAgentGate = null
+          state.isAgentGateReplying = false
+        }
+      })
+    }
+
+    const unsubscribeAsked = window.api.agentGate.onAsked((request) => onAgentGateAsked(null, request))
+    const unsubscribeReplied = window.api.agentGate.onReplied((payload) =>
+      onAgentGateReplied(null, payload)
+    )
+
     return () => {
       window.removeEventListener('baishou:compression-stream-reset', onCompressionStreamReset)
+      unsubscribeAsked()
+      unsubscribeReplied()
     }
   }, [])
 
@@ -307,6 +350,18 @@ export function useAgentStream(currentSessionId?: string): UseAgentStreamResult 
     []
   )
 
+  const beginStreaming = useCallback((sessionId: string) => {
+    updateSessionState(sessionId, (state) => {
+      state.isStreaming = true
+      state.error = null
+      state.activeTool = null
+      state.completedTools = []
+      state.text = ''
+      state.reasoning = ''
+      state.activeToolStartTime = undefined
+    })
+  }, [])
+
   const startChat = useCallback(
     async (
       sessionId: string,
@@ -317,15 +372,7 @@ export function useAgentStream(currentSessionId?: string): UseAgentStreamResult 
       searchMode?: boolean,
       userMsgId?: string
     ): Promise<void> => {
-      updateSessionState(sessionId, (state) => {
-        state.isStreaming = true
-        state.error = null
-        state.activeTool = null
-        state.completedTools = []
-        state.text = ''
-        state.reasoning = ''
-        state.activeToolStartTime = undefined
-      })
+      beginStreaming(sessionId)
 
       await window.electron.ipcRenderer.invoke('agent:chat', {
         sessionId,
@@ -337,7 +384,7 @@ export function useAgentStream(currentSessionId?: string): UseAgentStreamResult 
         userMsgId
       })
     },
-    []
+    [beginStreaming]
   )
 
   const editChat = useCallback(
@@ -350,15 +397,7 @@ export function useAgentStream(currentSessionId?: string): UseAgentStreamResult 
       attachments?: any[],
       searchMode?: boolean
     ) => {
-      updateSessionState(sessionId, (state) => {
-        state.isStreaming = true
-        state.error = null
-        state.activeTool = null
-        state.completedTools = []
-        state.text = ''
-        state.reasoning = ''
-        state.activeToolStartTime = undefined
-      })
+      beginStreaming(sessionId)
 
       await window.electron.ipcRenderer.invoke(
         'agent:edit-message',
@@ -371,7 +410,7 @@ export function useAgentStream(currentSessionId?: string): UseAgentStreamResult 
         searchMode
       )
     },
-    []
+    [beginStreaming]
   )
 
   const resendChat = useCallback(
@@ -416,6 +455,36 @@ export function useAgentStream(currentSessionId?: string): UseAgentStreamResult 
     }
   }, [currentSessionId])
 
+  const replyAgentGate = useCallback(
+    async (input: {
+      requestId: string
+      reply: AgentGateReply
+      message?: string
+      selectedOptionIds?: string[]
+    }) => {
+      if (!currentSessionId) return
+      updateSessionState(currentSessionId, (state) => {
+        state.isAgentGateReplying = true
+      })
+      try {
+        await window.api.agentGate.reply(input)
+        updateSessionState(currentSessionId, (state) => {
+          if (state.pendingAgentGate?.id === input.requestId) {
+            state.pendingAgentGate = null
+          }
+          state.isAgentGateReplying = false
+        })
+      } catch (error) {
+        console.error('[useAgentStream] agent gate reply failed:', error)
+        updateSessionState(currentSessionId, (state) => {
+          state.isAgentGateReplying = false
+        })
+        throw error
+      }
+    },
+    [currentSessionId]
+  )
+
   const reset = useCallback(() => {
     if (!currentSessionId) return
     updateSessionState(currentSessionId, (state) => {
@@ -430,6 +499,8 @@ export function useAgentStream(currentSessionId?: string): UseAgentStreamResult 
       state.activeTool = null
       state.completedTools = []
       state.activeToolStartTime = undefined
+      state.pendingAgentGate = null
+      state.isAgentGateReplying = false
     })
   }, [currentSessionId])
 
@@ -446,7 +517,9 @@ export function useAgentStream(currentSessionId?: string): UseAgentStreamResult 
         compressionTriggerMessageId: null,
         activeTool: null,
         completedTools: [],
-        error: null
+        error: null,
+        pendingAgentGate: null,
+        isAgentGateReplying: false
       }
 
   return {
@@ -461,11 +534,15 @@ export function useAgentStream(currentSessionId?: string): UseAgentStreamResult 
     activeTool: activeState.activeTool,
     completedTools: activeState.completedTools,
     error: activeState.error,
+    pendingAgentGate: activeState.pendingAgentGate,
+    isAgentGateReplying: activeState.isAgentGateReplying,
     saveUserMessage,
     startChat,
     editChat,
     resendChat,
     stopChat,
-    reset
+    reset,
+    beginStreaming,
+    replyAgentGate
   }
 }
