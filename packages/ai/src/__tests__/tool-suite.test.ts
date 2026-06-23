@@ -18,17 +18,21 @@ import {
   ContextCompressUpstreamTool,
   ContextCompressDownstreamTool
 } from '../tools/context-compress.tool'
+import { CompanionAskTool } from '../tools/companion-ask.tool'
 
 describe('ToolRegistry — Full Tool Suite', () => {
-  it('should auto-register all 16 built-in tools on construction', () => {
+  it('should auto-register all built-in tools on construction', () => {
     const registry = new ToolRegistry()
     const allTools = registry.getAllRaw()
 
-    expect(allTools).toHaveLength(16)
+    expect(allTools).toHaveLength(23)
 
-    // 检验每个预期工具都被注册了
     const toolNames = allTools.map((t) => t.name)
     expect(toolNames).toContain('current_time')
+    expect(toolNames).toContain('companion_ask')
+    expect(toolNames).toContain('workspace_list')
+    expect(toolNames).toContain('workspace_read')
+    expect(toolNames).toContain('workspace_write')
     expect(toolNames).toContain('diary_read')
     expect(toolNames).toContain('diary_edit')
     expect(toolNames).toContain('diary_delete')
@@ -54,10 +58,11 @@ describe('ToolRegistry — Full Tool Suite', () => {
       vaultName: '/tmp'
     })
 
-    // 16 个工具，其中 3 个因缺少条件隐式跳过（web_search/vector_search/memory_store），
-    // 2 个内部压缩工具不暴露给模型主动调用。
-    expect(Object.keys(vercelTools)).toHaveLength(11)
+    // 23 个工具，其中 3 个因缺少条件隐式跳过（web_search/vector_search/memory_store），
+    // 6 个 workspace 工具需 folderRoot，2 个内部压缩工具不暴露给模型主动调用。
+    expect(Object.keys(vercelTools)).toHaveLength(12)
     expect(vercelTools['current_time']).toBeDefined()
+    expect(vercelTools['companion_ask']).toBeDefined()
     expect(vercelTools['diary_read']).toBeDefined()
     expect(vercelTools['diary_write']).toBeDefined()
     expect(vercelTools['summary_read']).toBeDefined()
@@ -79,7 +84,7 @@ describe('ToolRegistry — Full Tool Suite', () => {
     expect(vercelTools['web_search']).toBeUndefined()
     expect(vercelTools['url_read']).toBeUndefined()
     expect(vercelTools['current_time']).toBeDefined()
-    expect(Object.keys(vercelTools)).toHaveLength(10)
+    expect(Object.keys(vercelTools)).toHaveLength(11)
   })
 
   it('should disable RAG tools when ragEnabled is false', () => {
@@ -124,6 +129,7 @@ describe('ToolRegistry — Full Tool Suite', () => {
       new SummaryReadTool(),
       new WebSearchTool(),
       new UrlReadTool(),
+      new CompanionAskTool(),
       new ContextCompressUpstreamTool(),
       new ContextCompressDownstreamTool()
     ]

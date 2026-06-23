@@ -14,10 +14,23 @@ import { MessageSearchTool } from './message-search.tool'
 import { VectorSearchTool } from './vector-search.tool'
 import { CurrentTimeTool } from './current-time.tool'
 import { ContextCompressUpstreamTool, ContextCompressDownstreamTool } from './context-compress.tool'
+import { CompanionAskTool } from './companion-ask.tool'
+import { WORKSPACE_TOOL_IDS, createWorkspaceTools } from '../agent-workspace/workspace.tools'
 
 const INTERNAL_ONLY_TOOL_IDS = new Set(['compress_context_upstream', 'compress_context_downstream'])
+const WORKSPACE_ONLY_TOOL_IDS = new Set<string>(WORKSPACE_TOOL_IDS)
+const WORKSPACE_SESSION_UTILITY_TOOL_IDS = new Set(['companion_ask', 'current_time'])
 
 function isToolEnabledForContext(name: string, tool: AgentTool, context: ToolContext): boolean {
+  const isWorkspaceSession = context.workspace?.sessionKind === 'workspace'
+  if (
+    isWorkspaceSession &&
+    !WORKSPACE_ONLY_TOOL_IDS.has(name) &&
+    !WORKSPACE_SESSION_UTILITY_TOOL_IDS.has(name)
+  ) {
+    return false
+  }
+
   const disabledIds = new Set(
     Array.isArray(context.userConfig?.['disabledToolIds'])
       ? (context.userConfig!['disabledToolIds'] as string[])
@@ -34,6 +47,7 @@ function isToolEnabledForContext(name: string, tool: AgentTool, context: ToolCon
     return false
   }
   if (name === 'web_search' && !webSearchEnabled) return false
+  if (WORKSPACE_ONLY_TOOL_IDS.has(name) && !context.workspace?.folderRoot) return false
   return true
 }
 
@@ -57,7 +71,9 @@ export class ToolRegistry {
       new VectorSearchTool(),
       new CurrentTimeTool(),
       new ContextCompressUpstreamTool(),
-      new ContextCompressDownstreamTool()
+      new ContextCompressDownstreamTool(),
+      new CompanionAskTool(),
+      ...createWorkspaceTools()
     ])
   }
 
