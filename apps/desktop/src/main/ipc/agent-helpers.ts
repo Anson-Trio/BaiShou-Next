@@ -17,6 +17,7 @@ import {
   AssistantManagerService
 } from '@baishou/core-desktop'
 import { DesktopAttachmentManagerService } from '../services/desktop-attachment-manager.service'
+import { getAgentGate } from '../services/agent-gate.service'
 import { fileSystem, pathService, getActiveVaultShadowRepo, vaultService } from './vault.ipc'
 import { settingsManager } from './settings.ipc'
 import {
@@ -29,7 +30,10 @@ import {
   parseDateStr,
   formatUserCardFromProfile,
   isConfiguredProviderId,
-  isConfiguredDialogueModelId
+  isConfiguredDialogueModelId,
+  BAISHOU_AGENT_GATE_CONFIG_KEY,
+  DEFAULT_BAISHOU_AGENT_GATE_CONFIG,
+  type BaishouAgentGateConfig
 } from '@baishou/shared'
 
 function previewDiaryRow(raw: string | null | undefined): string {
@@ -374,6 +378,14 @@ export async function buildStreamConfig(
   const hasEmbeddingModel = !!embeddingProvider && !!embeddingModelId
 
   const diaryTemplateConfig = (await settingsManager.get<any>('diary_template_config')) || {}
+  const agentGateStored =
+    (await settingsManager.get<BaishouAgentGateConfig>(BAISHOU_AGENT_GATE_CONFIG_KEY)) ??
+    DEFAULT_BAISHOU_AGENT_GATE_CONFIG
+  const baishou_agent_gate_config: BaishouAgentGateConfig = {
+    ...agentGateStored,
+    exclusionList: [...(agentGateStored.exclusionList ?? [])],
+    allowlist: [...(agentGateStored.allowlist ?? [])]
+  }
 
   const userConfig = {
     ragEnabled: ragConfig?.ragEnabled ?? true,
@@ -388,7 +400,8 @@ export async function buildStreamConfig(
     web_search_enabled: searchMode ?? false,
     ...webSearchConfigToUserConfig(webSearchConfig),
     userCard,
-    diaryAiWritingPrompt: buildDiaryWritingGuidelinesForSystemPrompt(diaryTemplateConfig)
+    diaryAiWritingPrompt: buildDiaryWritingGuidelinesForSystemPrompt(diaryTemplateConfig),
+    baishou_agent_gate_config
   }
 
   const namingModelConfigured =
@@ -474,7 +487,8 @@ export async function buildMcpToolContext(): Promise<ToolContext> {
     summaryReader: dbAdapter,
     deduplicationService: dedupService,
     webSearchResultFetcher: createWebSearchResultFetcher(),
-    fetchSearchPage: createFetchSearchPage()
+    fetchSearchPage: createFetchSearchPage(),
+    agentGate: await getAgentGate()
   }
 
   mcpToolContextCache = {

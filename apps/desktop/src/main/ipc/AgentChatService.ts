@@ -1,4 +1,4 @@
-import { logger } from '@baishou/shared'
+import { logger, BAISHOU_AGENT_GATE_CONFIG_KEY, type BaishouAgentGateConfig } from '@baishou/shared'
 import { AgentChatCoreService } from '@baishou/ai'
 import { ElectronStreamEmitter } from './electron-stream-emitter'
 import {
@@ -9,10 +9,21 @@ import {
   createFetchSearchPage,
   buildStreamConfig
 } from './agent-helpers'
+import { settingsManager } from './settings.ipc'
 import { searchService } from '../services/search.service'
+import {
+  cancelAllAgentGateSessions,
+  cancelAgentGateSession,
+  getAgentGate
+} from '../services/agent-gate.service'
 
 export class AgentChatService {
-  public static stopStream() {
+  public static stopStream(sessionId?: string) {
+    if (sessionId) {
+      cancelAgentGateSession(sessionId, 'stream_stopped')
+    } else {
+      cancelAllAgentGateSessions('stream_stopped')
+    }
     const stopped = AgentChatCoreService.stopStream()
     searchService.requestAbort()
     void searchService.closeAllSearchWindows()
@@ -54,6 +65,7 @@ export class AgentChatService {
   }) {
     const { realSessionRepo, realSnapshotRepo } = getAgentManagers()
     const emitter = new ElectronStreamEmitter(params.event)
+    const agentGate = await getAgentGate()
 
     await AgentChatCoreService.runStreamChat({
       emitter,
@@ -67,6 +79,10 @@ export class AgentChatService {
       attachments: params.attachments,
       skipUserMessageRecording: params.skipUserMessageRecording,
       forceRecompress: params.forceRecompress,
+      agentGate,
+      persistBaishouAgentGateConfig: async (config: BaishouAgentGateConfig) => {
+        await settingsManager.set(BAISHOU_AGENT_GATE_CONFIG_KEY, config)
+      },
       realSessionRepo,
       realSnapshotRepo,
       toolRegistry,
@@ -120,6 +136,7 @@ export class AgentChatService {
       return true
     } catch (error: any) {
       if (error.name === 'AbortError') {
+        cancelAgentGateSession(args.sessionId, 'stream_stopped')
         event.sender.send('agent:stream-finish', { success: true })
         return true
       }
