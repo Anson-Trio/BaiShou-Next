@@ -8,7 +8,11 @@ import type {
   DiaryTemplateConfig,
   ToolManagementConfig,
   McpServerConfig,
-  HotkeyConfig
+  HotkeyConfig,
+  BaishouAgentGateConfig
+} from '@baishou/shared'
+import {
+  DEFAULT_BAISHOU_AGENT_GATE_CONFIG as SHARED_DEFAULT_BAISHOU_AGENT_GATE_CONFIG
 } from '@baishou/shared'
 
 export const DEFAULT_AI_PROVIDERS: AIProviderConfig[] = [
@@ -252,6 +256,12 @@ export const DEFAULT_DIARY_TEMPLATE_CONFIG: DiaryTemplateConfig = {}
 export const DEFAULT_TOOL_MANAGEMENT_CONFIG: ToolManagementConfig = {
   disabledToolIds: [],
   customConfigs: {}
+}
+
+export const DEFAULT_BAISHOU_AGENT_GATE_CONFIG: BaishouAgentGateConfig = {
+  trustMode: SHARED_DEFAULT_BAISHOU_AGENT_GATE_CONFIG.trustMode,
+  exclusionList: [...SHARED_DEFAULT_BAISHOU_AGENT_GATE_CONFIG.exclusionList],
+  allowlist: []
 }
 
 export const DEFAULT_MCP_SERVER_CONFIG: McpServerConfig = {
