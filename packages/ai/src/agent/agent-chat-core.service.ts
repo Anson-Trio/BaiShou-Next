@@ -36,6 +36,9 @@ export class AgentChatCoreService {
     diarySearcher: unknown
     webSearchResultFetcher: unknown
     fetchSearchPage: unknown
+    agentGate?: unknown
+    persistBaishouAgentGateConfig?: (config: import('@baishou/shared').BaishouAgentGateConfig) => Promise<void>
+    workspace?: import('./agent-session.types').StreamChatOptions['workspace']
   }) {
     const claim = claimAgentStreamSession(params.sessionId)
 
@@ -58,6 +61,9 @@ export class AgentChatCoreService {
           diarySearcher: params.diarySearcher,
           webSearchResultFetcher: params.webSearchResultFetcher,
           fetchSearchPage: params.fetchSearchPage,
+          agentGate: params.agentGate,
+          persistBaishouAgentGateConfig: params.persistBaishouAgentGateConfig,
+          workspace: params.workspace,
           abortSignal: claim.signal,
           streamClaimGeneration: claim.generation
         } as Parameters<typeof agentService.streamChat>[0],

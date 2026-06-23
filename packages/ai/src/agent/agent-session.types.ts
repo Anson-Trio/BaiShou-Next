@@ -1,5 +1,9 @@
 import { IAIProvider } from '../providers/provider.interface'
 import { ToolRegistry } from '../tools/tool-registry'
+import type { IBaishouAgentGate } from '../baishou-agent-gate/baishou-agent-gate.service'
+import type { AgentSessionKind, BaishouAgentGateConfig, FileChangePartData } from '@baishou/shared'
+import type { AgentRoundCheckpointService } from '../agent-workspace/agent-round-checkpoint.service'
+import type { WorkspaceFsAdapter } from '../agent-workspace/workspace-fs'
 import { SessionRepository } from '@baishou/database'
 // @ts-ignore
 import { SnapshotRepository } from '@baishou/database'
@@ -47,6 +51,19 @@ export interface StreamChatOptions {
   userMessageId?: string // 明确指定回复针对的用户消息 ID
   skipUserMessageRecording?: boolean // 用户消息已提前落库时，跳过重复记录
   forceRecompress?: boolean // 编辑/重发截断后强制重建压缩摘要
+  /** Inject a shared gate; otherwise created per stream from userConfig */
+  agentGate?: IBaishouAgentGate
+  /** Persist allowlist / config mutations after gate "always" replies */
+  persistBaishouAgentGateConfig?: (config: BaishouAgentGateConfig) => Promise<void>
+  /** Workspace session context for folder-bound agent tools */
+  workspace?: {
+    folderRoot: string
+    sessionKind?: AgentSessionKind
+    fs?: WorkspaceFsAdapter
+    roundCheckpointService?: AgentRoundCheckpointService
+    roundCheckpointId?: string
+    onFileChange?: (change: FileChangePartData) => void
+  }
 }
 
 export interface StreamChatCallbacks {

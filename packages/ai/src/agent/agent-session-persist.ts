@@ -33,6 +33,8 @@ export interface PersistResultParams {
   namingModelConfigured?: boolean
   namingProvider?: IAIProvider
   namingModelId?: string
+  agentGateParts?: import('@baishou/shared').AgentGatePartData[]
+  fileChangeParts?: import('@baishou/shared').FileChangePartData[]
 }
 
 /**
@@ -113,6 +115,26 @@ export async function persistResult(params: PersistResultParams): Promise<{
         result: resultObj ? resultObj.result : undefined,
         status: resultObj ? 'completed' : 'failed'
       }
+    })
+  }
+
+  for (const gatePart of params.agentGateParts ?? []) {
+    partsToInsert.push({
+      id: generateUUID(),
+      messageId: assistantMsgId,
+      sessionId,
+      type: 'agent_gate',
+      data: gatePart
+    })
+  }
+
+  for (const fileChange of params.fileChangeParts ?? []) {
+    partsToInsert.push({
+      id: generateUUID(),
+      messageId: assistantMsgId,
+      sessionId,
+      type: 'file_change',
+      data: fileChange
     })
   }
 

@@ -43,6 +43,13 @@ import { StreamChatOptions, StreamChatCallbacks } from './agent-session.types'
 import { persistResult } from './agent-session-persist'
 import { messageHasImageAttachments } from './attachment-content.builder'
 import { isAgentStreamSessionClaimActive } from './stream-session-guard'
+import { resolveSessionAgentGate } from '../baishou-agent-gate/baishou-agent-gate-session.util'
+import { runCompressionSaveDiaryLifecycle } from '../baishou-agent-gate/compression-save-diary.lifecycle'
+import { BaishouAgentGateSessionBuffer } from '../baishou-agent-gate/baishou-agent-gate-session-buffer'
+import { WorkspaceSessionBuffer } from '../agent-workspace/workspace-session-buffer'
+import type { IBaishouAgentGate } from '../baishou-agent-gate/baishou-agent-gate.service'
+import type { MessageWithParts } from './message.adapter'
+import { onAgentGateLifecycle } from './agent-gate-lifecycle'
 
 export type { StreamChatOptions, StreamChatCallbacks } from './agent-session.types'
 
@@ -70,10 +77,57 @@ export class AgentSessionService {
       streamClaimGeneration,
       userMessageId,
       skipUserMessageRecording,
-      forceRecompress
+      forceRecompress,
+      agentGate: injectedAgentGate,
+      persistBaishouAgentGateConfig,
+      diarySearcher,
+      workspace: workspaceInput
     } = options
 
+    let sessionAgentGate: IBaishouAgentGate | undefined
+    const gateSessionBuffer = new BaishouAgentGateSessionBuffer()
+    const workspaceSessionBuffer = new WorkspaceSessionBuffer()
+    const workspaceOptions = workspaceInput
+      ? {
+          ...workspaceInput,
+          onFileChange: (change: import('@baishou/shared').FileChangePartData) => {
+            workspaceSessionBuffer.push(change)
+            workspaceInput.onFileChange?.(change)
+          }
+        }
+      : undefined
+    const unsubGateBuffer = onAgentGateLifecycle((event) => {
+      if (event.type === 'agent_gate.allowlist_changed') return
+      if (event.type === 'agent_gate.asked' && event.request.sessionId !== sessionId) return
+      if (event.type === 'agent_gate.replied' && event.sessionId !== sessionId) return
+      gateSessionBuffer.handleEvent(event)
+    })
+    const onAbortCancelGate = () => {
+      sessionAgentGate?.cancelSession(sessionId, 'stream aborted')
+    }
+    abortSignal?.addEventListener('abort', onAbortCancelGate, { once: true })
+
     try {
+      const sessionObj = await sessionRepo.getSessionById?.(sessionId)
+      const vaultName = sessionObj?.vaultName || 'default'
+
+      const { gate: sessionAgentGateResolved } = resolveSessionAgentGate({
+        agentGate: injectedAgentGate,
+        userConfig,
+        persistBaishouAgentGateConfig
+      })
+      sessionAgentGate = sessionAgentGateResolved
+
+      const saveDiaryBeforeCompression = async (messages: MessageWithParts[]) => {
+        await runCompressionSaveDiaryLifecycle({
+          agentGate: sessionAgentGate,
+          diarySearcher,
+          sessionId,
+          vaultName,
+          messages
+        })
+      }
+
       // 1. 获取基础模型，然后用 Vercel 原生 middleware 包装
       const baseModel = provider.getLanguageModel(modelId)
       const model = wrapLanguageModelWithMiddlewares(baseModel, {
@@ -104,6 +158,7 @@ export class AgentSessionService {
           logger.info(
             `[AgentSessionService] Context ~${contextTokens} tokens hit compression trigger (threshold=${compressionConfigForRun.threshold}, window=${compressionConfigForRun.modelContextWindow ?? 0}, force=${Boolean(compressionConfigForRun.force)}), compressing before request.`
           )
+          await saveDiaryBeforeCompression(rawForEstimate)
           const compressed = await ContextCompressorService.tryCompress(
             provider,
             modelId,
@@ -182,8 +237,6 @@ export class AgentSessionService {
         )
       }
 
-      const sessionObj = await sessionRepo.getSessionById?.(sessionId)
-
       const contextCompressionRunner = {
         run: async (phase: 'upstream' | 'downstream', opts?: { force?: boolean }) => {
           const config = await resolveSessionCompressionConfig(sessionId, sessionRepo)
@@ -195,6 +248,11 @@ export class AgentSessionService {
           if (merged.threshold <= 0 && usableWindow <= 0 && !merged.force) {
             return 'Companion auto-compression is disabled (threshold 0). Enable it in Memory settings or use force=true.'
           }
+          const messagesForLifecycle = (await sessionRepo.getMessagesBySession(
+            sessionId,
+            COMPRESSION_MESSAGE_FETCH_LIMIT
+          )) as MessageWithParts[]
+          await saveDiaryBeforeCompression(messagesForLifecycle)
           const ok = await ContextCompressorService.tryCompress(
             provider,
             modelId,
@@ -255,10 +313,12 @@ export class AgentSessionService {
         messageSearcher: dbAdapter,
         summaryReader: dbAdapter,
         deduplicationService: dedupService,
-        diarySearcher: options.diarySearcher,
+        diarySearcher,
         webSearchResultFetcher: webSearchResultFetcher,
         fetchSearchPage: options.fetchSearchPage,
-        contextCompressionRunner
+        contextCompressionRunner,
+        agentGate: sessionAgentGate,
+        workspace: workspaceOptions
       })
 
       const builtSystemPrompt = SystemPromptBuilder.build({
@@ -384,7 +444,9 @@ export class AgentSessionService {
         systemPrompt: builtSystemPrompt,
         namingModelConfigured: systemModels?.namingModelConfigured,
         namingProvider: systemModels?.namingProvider,
-        namingModelId: systemModels?.namingModelId
+        namingModelId: systemModels?.namingModelId,
+        agentGateParts: gateSessionBuffer.buildPartDataList(),
+        fileChangeParts: workspaceSessionBuffer.buildPartDataList()
       })
 
       // 7. 向外抛出完成/错误回调（仅一次，避免覆盖真实 API 错误）
@@ -428,6 +490,10 @@ export class AgentSessionService {
       }
       callbacks?.onError?.(err)
       throw err
+    } finally {
+      unsubGateBuffer()
+      abortSignal?.removeEventListener('abort', onAbortCancelGate)
+      sessionAgentGate?.cancelSession(sessionId, 'stream ended')
     }
   }
 
