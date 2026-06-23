@@ -111,7 +111,10 @@ vi.mock('../flutter-legacy-paths.service', async (importOriginal) => {
   return {
     ...actual,
     resolveLegacyRootCandidates: vi.fn().mockResolvedValue([]),
-    readFlutterSharedPreferencesRaw: mockReadMachineSp
+    readFlutterSharedPreferencesRaw: mockReadMachineSp,
+    resolveLegacyPreferencesForMigration: vi.fn(async (sourceDir: string) =>
+      actual.resolveLegacyPreferencesForSource(sourceDir, { allowMachineSpFallback: false })
+    )
   }
 })
 

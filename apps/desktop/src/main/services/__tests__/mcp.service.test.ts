@@ -13,10 +13,10 @@ describe.sequential('McpService', () => {
   let testPort: number
 
   beforeEach(() => {
-    testPort = 35700 + Math.floor(Math.random() * 1000)
+    testPort = 0
     mockSettingsRepo = {
       getMcpServerConfig: vi.fn().mockResolvedValue({
-        mcpPort: testPort,
+        mcpPort: 0,
         mcpEnabled: true
       })
     }
@@ -70,16 +70,10 @@ describe.sequential('McpService', () => {
     await service.start()
     const server = (service as any).httpServer as import('http').Server | null
     expect(server).toBeTruthy()
-
-    await vi.waitFor(
-      () => {
-        expect(server!.listening).toBe(true)
-        expect(server!.address()).toBeTruthy()
-      },
-      { timeout: 10_000, interval: 50 }
-    )
+    expect(server!.listening).toBe(true)
 
     const bound = server!.address()
+    expect(bound).toBeTruthy()
     const port = typeof bound === 'object' && bound ? bound.port : testPort
     const base = `http://127.0.0.1:${port}/mcp`
     const mcpHeaders = {

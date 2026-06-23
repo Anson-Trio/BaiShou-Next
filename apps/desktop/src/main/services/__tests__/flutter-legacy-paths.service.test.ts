@@ -42,9 +42,9 @@ describe('flutter-legacy-paths.service', () => {
   beforeEach(async () => {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'flutter-legacy-paths-'))
     sourceDir = path.join(tempDir, 'source')
-    machineSpPath = flutterLegacyPaths.resolveFlutterSharedPreferencesCandidates()[0]!
     originalAppData = process.env.APPDATA
     process.env.APPDATA = path.join(tempDir, 'AppData', 'Roaming')
+    machineSpPath = flutterLegacyPaths.resolveFlutterSharedPreferencesCandidates()[0]!
     try {
       machineSpBackup = await fs.readFile(machineSpPath)
       machineSpExisted = true
