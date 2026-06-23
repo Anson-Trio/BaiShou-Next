@@ -62,4 +62,18 @@ describe('stripLeakedMessageTimeFromAssistantText', () => {
       '</thinking>\n<message-time>2026-06-23 11:38</message-time>\n<message-content>嗯，我听着呢。你说。🦊💙</message-content>'
     expect(stripLeakedMessageTimeFromAssistantText(raw)).toBe('嗯，我听着呢。你说。🦊💙')
   })
+
+  it('unwraps nested metadata with malformed message-time close tag', () => {
+    const raw =
+      '</thinking>\n<message-time>2026-06-23 16:28</message-time>\n<message-content>\n<message-time>2026-06-23 16:28</time>\n嗯，我懂。不是什么狂喜或者激动，就是——'
+    expect(stripLeakedMessageTimeFromAssistantText(raw)).toBe(
+      '嗯，我懂。不是什么狂喜或者激动，就是——'
+    )
+  })
+
+  it('returns empty string when only leaked metadata remains', () => {
+    const raw =
+      '</thinking>\n<message-time>2026-06-23 16:28</message-time>\n<message-content>\n<message-time>2026-06-23 16:28</time>'
+    expect(stripLeakedMessageTimeFromAssistantText(raw)).toBe('')
+  })
 })
