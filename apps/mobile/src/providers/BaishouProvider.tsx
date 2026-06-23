@@ -39,7 +39,9 @@ import {
   resolveSyncDeviceId,
   isConfiguredProviderId,
   isConfiguredDialogueModelId,
-  type SummaryPromptLocale
+  type SummaryPromptLocale,
+  BAISHOU_AGENT_GATE_CONFIG_KEY,
+  type BaishouAgentGateConfig
 } from '@baishou/shared'
 import { getTtsPlaybackSettings } from '../services/mobile-tts-settings.service'
 import { shouldRefreshVaultAfterArchiveImport } from '../services/archive-guards.util'
@@ -63,7 +65,11 @@ import {
   StreamChatCallbacks,
   htmlToPlainText,
   EmbeddingAdapter,
-  HybridSearchService
+  HybridSearchService,
+  createBaishouAgentGate,
+  bridgeAgentGateEventBus,
+  cloneBaishouAgentGateConfig,
+  type IBaishouAgentGate
 } from '@baishou/ai'
 
 import { MobileStoragePathService } from '../services/path.service'
@@ -96,11 +102,14 @@ import { mobilePricingService, type MobilePricingService } from '../services/mob
 import type { VaultFileWatcherService } from '../services/vault-file-watcher.service'
 import type { MobileDataBootstrapper } from '../services/mobile-bootstrapper.service'
 import { ensureMobileCompressionBridge } from '../services/mobile-compression-event.service'
+import { ensureMobileAgentGateBridge } from '../services/mobile-agent-gate.service'
+import { DEFAULT_BAISHOU_AGENT_GATE_CONFIG } from '@baishou/database'
 import type { IFileSystem } from '@baishou/core-mobile'
 import { buildMobileSummaryAiClient } from '../services/mobile-summary-ai-client'
 import { MobileAttachmentManagerService } from '../services/mobile-attachment-manager.service'
 import { warmAgentScreenCaches } from '../lib/agent-user-profile.util'
 import { reconcileAssistantAvatarsAfterStorageChange } from '../lib/assistant-avatar-reconcile.util'
+import { reconcileUserAvatarProfileAfterStorageChange } from '../lib/user-avatar-reconcile.util'
 import {
   initMobileCacheCoordinator,
   emitSyncMutation,
@@ -245,6 +254,10 @@ interface BaishouContextValue {
       attachments?: unknown[]
     }
   ) => Promise<void>
+  /** 进程内共享 BaishouAgentGate（对话确认卡直接 gate.reply） */
+  agentGate?: IBaishouAgentGate
+  /** 设置页保存门控配置后刷新运行时策略 */
+  reloadAgentGateConfig?: () => Promise<void>
 }
 
 const BaishouContext = createContext<BaishouContextValue>({
@@ -334,6 +347,11 @@ export function BaishouProvider({ children }: { children: ReactNode }) {
   const notifyVersionMigrationCompleteRef = useRef<() => void>(() => {})
   const resyncAfterMigrationRef = useRef<() => Promise<void>>(async () => {})
   const agentDbRuntimeRef = useRef<AgentDbRuntime | null>(null)
+  const agentGateConfigRef = useRef<BaishouAgentGateConfig>(
+    cloneBaishouAgentGateConfig(DEFAULT_BAISHOU_AGENT_GATE_CONFIG)
+  )
+  const agentGateRef = useRef<IBaishouAgentGate | null>(null)
+  const reloadAgentGateConfigRef = useRef<() => Promise<void>>(async () => {})
   const reloadAgentDatabaseRef = useRef<() => Promise<void>>(async () => {})
   const archiveFullRestoreDoneRef = useRef(false)
   const vaultBootstrapCtxRef = useRef<{
@@ -520,6 +538,36 @@ export function BaishouProvider({ children }: { children: ReactNode }) {
 
         const settingsFileService = new SettingsFileService(pathService, fileSystem)
         const settingsManager = new SettingsManagerService(settingsRepo, settingsFileService)
+
+        const persistBaishouAgentGateConfig = async (config: BaishouAgentGateConfig) => {
+          Object.assign(agentGateConfigRef.current, {
+            trustMode: config.trustMode,
+            exclusionList: [...config.exclusionList],
+            allowlist: config.allowlist.map((entry) => ({ ...entry })),
+            actionRules: config.actionRules ? { ...config.actionRules } : undefined
+          })
+          await settingsManager.set(BAISHOU_AGENT_GATE_CONFIG_KEY, agentGateConfigRef.current)
+        }
+
+        const reloadAgentGateConfig = async () => {
+          const saved = await settingsManager.get<BaishouAgentGateConfig>(
+            BAISHOU_AGENT_GATE_CONFIG_KEY
+          )
+          const next = cloneBaishouAgentGateConfig(saved ?? DEFAULT_BAISHOU_AGENT_GATE_CONFIG)
+          Object.assign(agentGateConfigRef.current, next)
+        }
+
+        await reloadAgentGateConfig()
+
+        const { gate: sharedAgentGate, eventBus: agentGateEventBus } = createBaishouAgentGate({
+          config: agentGateConfigRef.current,
+          persistConfig: () => persistBaishouAgentGateConfig(agentGateConfigRef.current)
+        })
+        agentGateRef.current = sharedAgentGate
+        reloadAgentGateConfigRef.current = reloadAgentGateConfig
+        bridgeAgentGateEventBus(agentGateEventBus)
+        ensureMobileAgentGateBridge()
+
         const vaultRuntimeDeps = { pathService, vaultService, fileSystem, settingsManager }
 
         let diaryStack: VaultBoundDiaryStack | null = null
@@ -875,6 +923,7 @@ export function BaishouProvider({ children }: { children: ReactNode }) {
               settingsManager: runtime?.settingsManager ?? settingsManager,
               pathService,
               getDiarySearcher,
+              getAgentGate: () => agentGateRef.current ?? undefined,
               drizzleDb: runtime?.drizzleDb ?? drizzleDb,
               webSearchResultFetcher: webFetchContent,
               fetchSearchPage: fetchSearchPageHtml
@@ -1081,7 +1130,9 @@ export function BaishouProvider({ children }: { children: ReactNode }) {
                 skipUserMessageRecording: overrides?.skipUserMessageRecording,
                 forceRecompress: overrides?.forceRecompress,
                 streamClaimGeneration: overrides?.streamClaimGeneration,
-                attachments: overrides?.attachments as any
+                attachments: overrides?.attachments as any,
+                agentGate: agentGateRef.current ?? undefined,
+                persistBaishouAgentGateConfig
               },
               callbacks
             )
@@ -1195,6 +1246,7 @@ export function BaishouProvider({ children }: { children: ReactNode }) {
                 settingsManager: runtime?.settingsManager ?? newRuntime.settingsManager,
                 pathService: ctx.pathService,
                 getDiarySearcher,
+                getAgentGate: () => agentGateRef.current ?? undefined,
                 drizzleDb: runtime?.drizzleDb ?? newDrizzleDb,
                 webSearchResultFetcher: webFetchContent,
                 fetchSearchPage: fetchSearchPageHtml
@@ -1762,7 +1814,9 @@ export function BaishouProvider({ children }: { children: ReactNode }) {
               buildSharedContext,
               getContextAtMessage
             },
-            startAgentChat
+            startAgentChat,
+            agentGate: agentGateRef.current ?? undefined,
+            reloadAgentGateConfig: () => reloadAgentGateConfigRef.current()
           })
           void warmAgentScreenCaches(settingsManager, attachmentManager)
         }

@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react'
+import React, { useRef, useEffect, useState, useCallback, useMemo, type ComponentType } from 'react'
 import { useRouter, type Href } from 'expo-router'
 import {
   type PromptShortcut,
@@ -47,6 +47,7 @@ import { AgentDrawerSwipeZone } from '../components/AgentDrawerSwipeZone'
 import { AssistantPicker } from '../components/AssistantPicker'
 import { ModelSwitcher } from '../components/ModelSwitcher'
 import { ContextChainDialog } from '../components/ContextChainDialog'
+import { AgentGateCardHost } from '../components/agent-gate/AgentGateCardHost'
 import { useBaishou } from '../providers/BaishouProvider'
 import { useAgentSession } from '../hooks/useAgentSession'
 import { useAgentSessions } from '../hooks/useAgentSessions'
@@ -209,7 +210,9 @@ export const AgentScreen = () => {
     handleResend,
     handleEditMessage,
     handleSaveAssistantEdit,
-    handleDeleteMessage
+    handleDeleteMessage,
+    pendingAgentGate,
+    replyAgentGate
   } = useAgentStream(
     currentSessionId,
     currentProviderId,
@@ -755,7 +758,9 @@ export const AgentScreen = () => {
     </View>
   )
 
-  const ChatBackgroundWrapper = resolvedChatBackgroundUri ? ImageBackground : View
+  const ChatBackgroundWrapper = (
+    resolvedChatBackgroundUri ? ImageBackground : View
+  ) as ComponentType<Record<string, unknown>>
   const chatBackgroundWrapperProps = resolvedChatBackgroundUri
     ? {
         source: { uri: resolvedChatBackgroundUri },
@@ -1045,6 +1050,8 @@ export const AgentScreen = () => {
         pricingLastUpdated={pricingLastUpdated}
         onRefreshPricing={handleRefreshPricing}
       />
+
+      <AgentGateCardHost request={pendingAgentGate} onReply={replyAgentGate} />
 
       <PromptShortcutSheet
         visible={showShortcutSheet}

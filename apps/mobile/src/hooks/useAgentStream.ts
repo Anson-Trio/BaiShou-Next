@@ -18,6 +18,8 @@ import { buildInsertSessionInput } from '../utils/session-input.util'
 import { mapSessionMessageFromDb } from '../utils/map-session-message.util'
 import { mapSavedAttachmentsForMobileUi } from '../utils/mobile-attachment-ui.util'
 import { subscribeMobileCompressionEvents } from '../services/mobile-compression-event.service'
+import { subscribeMobileAgentGateEvents } from '../services/mobile-agent-gate.service'
+import { AgentGateReply, type AgentGateRequest } from '@baishou/shared'
 
 const COMPRESSION_DELTA_RENDER_INTERVAL_MS = 80
 
@@ -58,7 +60,7 @@ export function useAgentStream(
   const toast = useNativeToast()
   const dialog = useDialog()
   const { addMessage, updateMessage, setLoading, clearSession, messages } = useAgentStore()
-  const { startAgentChat, services, vaultSwitching } = useBaishou()
+  const { startAgentChat, services, vaultSwitching, agentGate } = useBaishou()
 
   const [isStreaming, setIsStreaming] = useState(false)
   const [streamingText, setStreamingText] = useState('')
@@ -80,6 +82,7 @@ export function useAgentStream(
   const [compressionTriggerMessageId, setCompressionTriggerMessageId] = useState<string | null>(
     null
   )
+  const [pendingAgentGate, setPendingAgentGate] = useState<AgentGateRequest | null>(null)
 
   const searchModeRef = useRef(searchMode)
   searchModeRef.current = searchMode
@@ -91,6 +94,8 @@ export function useAgentStream(
   const compressionTextBufferRef = useRef('')
   const compressionReasoningBufferRef = useRef('')
   const compressionFlushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pendingAgentGateIdRef = useRef<string | null>(null)
+  pendingAgentGateIdRef.current = pendingAgentGate?.id ?? null
   const streamFinalizeLockRef = useRef<string | null>(null)
 
   const isActiveSession = useCallback(
@@ -269,6 +274,46 @@ export function useAgentStream(
     scheduleCompressionFlush
   ])
 
+  /** 对齐 desktop：消费 agent_gate 生命周期，展示阻塞确认卡 */
+  useEffect(() => {
+    return subscribeMobileAgentGateEvents((event) => {
+      if (event.type === 'agent_gate.allowlist_changed') return
+
+      if (event.type === 'agent_gate.asked') {
+        if (event.request.sessionId !== currentSessionIdRef.current) return
+        setPendingAgentGate(event.request)
+        return
+      }
+
+      if (event.type === 'agent_gate.replied') {
+        if (event.sessionId !== currentSessionIdRef.current) return
+        if (pendingAgentGateIdRef.current === event.requestId) {
+          setPendingAgentGate(null)
+        }
+      }
+    })
+  }, [])
+
+  const replyAgentGate = useCallback(
+    async (requestId: string, reply: AgentGateReply, extras?: { message?: string; selectedOptionIds?: string[] }) => {
+      if (!agentGate) {
+        toast.showError(t('agent_gate.unavailable', '操作确认服务未就绪'))
+        return
+      }
+      try {
+        await agentGate.reply({ requestId, reply, ...extras })
+        if (pendingAgentGateIdRef.current === requestId) {
+          setPendingAgentGate(null)
+        }
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e)
+        toast.showError(msg || t('agent_gate.reply_failed', '确认操作失败'))
+        throw e
+      }
+    },
+    [agentGate, toast, t]
+  )
+
   useEffect(() => () => clearCompressionFlushTimer(), [clearCompressionFlushTimer])
 
   const resetStreamingBuffers = useCallback(() => {
@@ -309,6 +354,7 @@ export function useAgentStream(
       setCompressionText('')
       setCompressionReasoning('')
       setCompressionTriggerMessageId(null)
+      setPendingAgentGate(null)
       resetStreamingBuffers()
     },
     [resetCompressionBuffers, resetStreamingBuffers, setLoading]
@@ -860,6 +906,8 @@ export function useAgentStream(
     handleEditMessage,
     handleSaveAssistantEdit,
     handleDeleteMessage,
-    updateTokenUsage
+    updateTokenUsage,
+    pendingAgentGate,
+    replyAgentGate
   }
 }

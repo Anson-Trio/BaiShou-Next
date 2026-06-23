@@ -1,6 +1,7 @@
 import React from 'react'
 import { View, StyleSheet } from 'react-native'
-import { ChatBubble, CompressionActivityBar, CompressionDivider } from '@baishou/ui/native'
+import { ChatBubble, CompressionActivityBar, CompressionDivider, AgentGatePartCard } from '@baishou/ui/native'
+import type { AgentGatePartData } from '@baishou/shared'
 import type { CompactionMarkerData } from '@baishou/ai'
 
 type ChatMessage = {
@@ -16,6 +17,7 @@ type ChatMessage = {
   cacheWriteInputTokens?: number
   costMicros?: number
   compactionRecord?: CompactionMarkerData | null
+  parts?: Array<{ type?: string; id?: string; data?: unknown }>
 }
 
 export interface AgentMessageRowProps {
@@ -98,8 +100,13 @@ export const AgentMessageRow: React.FC<AgentMessageRowProps> = ({
 
   const showDivider = showPersistedCompression && persistedCompaction?.status !== 'failed'
 
+  const agentGateParts = (item.parts ?? []).filter((part) => part.type === 'agent_gate')
+
   return (
     <View style={styles.row}>
+      {agentGateParts.map((part) => (
+        <AgentGatePartCard key={part.id} data={part.data as AgentGatePartData} />
+      ))}
       <ChatBubble
         message={{
           id: item.id,
