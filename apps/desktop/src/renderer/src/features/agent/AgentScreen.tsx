@@ -6,6 +6,7 @@ import {
   normalizeChatBackgroundOverlayOpacity
 } from '@baishou/shared'
 import { AgentDialogs } from './components/AgentDialogs'
+import { AgentGateDock } from '@baishou/ui'
 import { AgentMessageList } from './components/AgentMessageList'
 import { useAgentChatFlow } from './hooks/useAgentChatFlow'
 import styles from './AgentScreen.module.css'
@@ -131,6 +132,12 @@ export const AgentScreen: React.FC = () => {
         currentAssistant={flow.currentAssistant}
         providers={flow.providers}
         inputBarRef={flow.inputBarRef}
+      />
+
+      <AgentGateDock
+        request={flow.stream.pendingAgentGate}
+        isReplying={flow.stream.isAgentGateReplying}
+        onReply={flow.stream.replyAgentGate}
       />
 
       {flow.contextDialogState.flatEntries && (
