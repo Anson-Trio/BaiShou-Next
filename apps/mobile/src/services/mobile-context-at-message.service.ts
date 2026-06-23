@@ -10,7 +10,10 @@ import {
   buildDiaryWritingGuidelinesForSystemPrompt,
   formatUserCardFromProfile,
   getUserProfileFromSettings,
-  type DiaryTemplateConfig
+  BAISHOU_AGENT_GATE_CONFIG_KEY,
+  DEFAULT_BAISHOU_AGENT_GATE_CONFIG,
+  type DiaryTemplateConfig,
+  type BaishouAgentGateConfig
 } from '@baishou/shared'
 import {
   DEFAULT_WEB_SEARCH_CONFIG,
@@ -78,6 +81,14 @@ export async function buildMobileStreamUserConfig(
   const globalModels = await settingsManager.get<any>('global_models')
   const diaryTemplateConfig =
     (await settingsManager.get<DiaryTemplateConfig>('diary_template_config')) || {}
+  const agentGateStored =
+    (await settingsManager.get<BaishouAgentGateConfig>(BAISHOU_AGENT_GATE_CONFIG_KEY)) ??
+    DEFAULT_BAISHOU_AGENT_GATE_CONFIG
+  const baishou_agent_gate_config: BaishouAgentGateConfig = {
+    ...agentGateStored,
+    exclusionList: [...(agentGateStored.exclusionList ?? [])],
+    allowlist: [...(agentGateStored.allowlist ?? [])]
+  }
   const userProfile = await getUserProfileFromSettings(settingsManager)
   const providers = (await settingsManager.get<any[]>('ai_providers')) || []
 
@@ -105,7 +116,8 @@ export async function buildMobileStreamUserConfig(
       ...(webSearchConfig || {})
     }),
     diaryAiWritingPrompt: buildDiaryWritingGuidelinesForSystemPrompt(diaryTemplateConfig),
-    userCard: formatUserCardFromProfile(userProfile)
+    userCard: formatUserCardFromProfile(userProfile),
+    baishou_agent_gate_config
   }
 }
 

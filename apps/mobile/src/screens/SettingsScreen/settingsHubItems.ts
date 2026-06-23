@@ -73,6 +73,12 @@ export const SETTINGS_HUB_GROUPS: SettingsHubGroup[] = [
         route: { type: 'section', section: 'agent-tools' }
       },
       {
+        id: 'agent-gate',
+        titleKey: 'agent.gate.settings_title',
+        icon: 'verified-user',
+        route: { type: 'section', section: 'agent-gate' }
+      },
+      {
         id: 'tts',
         titleKey: 'settings.tts_settings',
         icon: 'volume-up',
