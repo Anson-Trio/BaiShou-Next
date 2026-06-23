@@ -126,6 +126,8 @@ export interface DiaryTemplateConfig {
   aiWritingPrompt?: string
 }
 
+export type { BaishouAgentGateConfig } from '../baishou-agent-gate/agent-gate.types'
+
 /**
  * 工具管理配置
  */
