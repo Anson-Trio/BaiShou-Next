@@ -86,11 +86,6 @@ describe('evaluateIncrementalSyncPlanDrift', () => {
 })
 
 describe('shouldReplanIncrementalSyncOnConfirm', () => {
-  const preview = {
-    deletePropagationBlocked: false,
-    requiresHighDivergenceConfirm: false
-  }
-
   it('已选删除传播时强制重规划', () => {
     expect(
       shouldReplanIncrementalSyncOnConfirm(

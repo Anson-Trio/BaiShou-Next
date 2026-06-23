@@ -64,7 +64,16 @@
     "exit_hint": "再按一次回到桌面",
     "search_hint": "搜索记忆...",
     "please_search": "请搜索",
-    "weekdays": ["", "周一", "周二", "周三", "周四", "周五", "周六", "周日"],
+    "weekdays": [
+      "",
+      "周一",
+      "周二",
+      "周三",
+      "周四",
+      "周五",
+      "周六",
+      "周日"
+    ],
     "months": [
       "一月",
       "二月",
@@ -811,7 +820,14 @@
     "delete_all_files": "清理该会话所有附件",
     "open_file_location": "在文件夹中显示",
     "attachment_preview_image": "查看原图",
-    "attachment_confirm_keyword": "确定"
+    "attachment_confirm_keyword": "确定",
+    "agent_gate_title": "伙伴操作门控",
+    "agent_gate_desc": "控制伙伴执行写入、修改等敏感操作前是否需要你确认。",
+    "agent_gate_manual": "逐项确认",
+    "agent_gate_full_trust": "完全信任",
+    "agent_gate_exclusion_title": "始终需确认的操作",
+    "agent_gate_allowlist_title": "始终允许列表",
+    "agent_gate_allowlist_empty": "暂无条目；在聊天中点「始终允许」后会出现在这里。"
   },
   "data_sync": {
     "title": "数据备份",
@@ -1637,7 +1653,9 @@
         "summarize_name": "总结",
         "summarize_content": "请总结以下内容背后的核心要义：\n\n"
       },
-      "url_read_desc": "直接读取特定网页 URL 的文本内容。当您有想要分析或总结的特定链接时使用此工具，而不是搜索整个网络。"
+      "url_read_desc": "直接读取特定网页 URL 的文本内容。当您有想要分析或总结的特定链接时使用此工具，而不是搜索整个网络。",
+      "companion_ask": "伙伴提问",
+      "companion_ask_desc": "向用户提出澄清问题，可附带选项；在用户回答前会阻塞等待确认。"
     },
     "chat": {
       "companion_mode": "深度陪伴",
@@ -1669,7 +1687,7 @@
       "ai_label": "AI 伙伴",
       "regenerate": "重新生成",
       "copy": "复制",
-      "input_hint": "输入消息...",
+      "input_hint": "输入消息，Shift+Enter 换行",
       "err_no_model": "请先在设置中配置 AI 模型",
       "cost_detail_title": "当前计费",
       "cost_total": "消耗总计",
@@ -2235,8 +2253,55 @@
   "nav": {
     "diary": "日记",
     "agent": "伙伴",
+    "agent_workspace": "Agent",
     "summary": "归档",
     "settings": "设置"
+  },
+  "agent_workspace": {
+    "folder": "工作文件夹",
+    "no_folder": "未选择文件夹",
+    "pick_folder": "选择文件夹",
+    "pick_folder_hint": "请先选择文件夹",
+    "collapse_sidebar": "收起侧栏",
+    "expand_sidebar": "展开侧栏",
+    "sessions_title": "会话",
+    "no_sessions": "暂无工作区会话",
+    "delete_session": "删除会话",
+    "delete_session_confirm": "确定删除此工作区会话？相关对话记录也会被移除。",
+    "file_tree": "文件树",
+    "empty_tree": "文件夹为空",
+    "empty_state": "打开左侧文件夹，选择或开始一段 Agent 对话。",
+    "new_session": "新对话",
+    "open_folder": "打开文件夹",
+    "no_sessions_in_folder": "暂无对话",
+    "select_session_hint": "在左侧展开文件夹并选择对话，或在下方输入开始新对话。",
+    "workspaces_title": "工作区",
+    "add_workspace": "添加工作区",
+    "no_workspace": "暂无工作区",
+    "pick_workspace_hint": "请先选择或添加工作区",
+    "select_change_hint": "选择文件查看 diff",
+    "collapse_changes_panel": "收起变更面板",
+    "expand_changes_panel": "展开变更面板",
+    "input_placeholder": "描述你想对文件夹做的修改…"
+  },
+  "file_change": {
+    "changes_title": "变更列表",
+    "no_changes": "暂无文件变更",
+    "no_preview": "暂无预览内容",
+    "no_diff": "暂无行级 diff",
+    "kind_create": "新建",
+    "kind_modify": "修改",
+    "kind_delete": "删除",
+    "kind_rename": "重命名"
+  },
+  "round_rollback": {
+    "action": "回滚本轮",
+    "confirm_title": "回滚本轮变更？",
+    "confirm_desc": "将恢复本轮对话开始前的文件状态，此操作不可撤销。",
+    "confirm": "确认回滚",
+    "cancel": "取消",
+    "success": "已回滚本轮变更",
+    "failed": "回滚失败"
   },
   "image_preview": {
     "zoom_in": "放大",
@@ -2541,6 +2606,7 @@
     "commit_all_success_count": "已暂存并提交 {{count}} 个文件",
     "commit_all_success_count_pushing": "已提交 {{count}} 个文件，正在推送...",
     "git_commit_failed": "提交失败",
+    "author_not_configured": "请先在「Git 提交签名」中填写用户名和邮箱后再提交",
     "git_rollback_failed": "回滚失败",
     "rollback_success": "回滚成功",
     "git_init_success": "Git 仓库初始化成功",
@@ -2619,5 +2685,25 @@
       "testing": "测试中...",
       "test_button": "测试"
     }
+  },
+  "agent_gate": {
+    "dock_title": "伙伴操作确认",
+    "dock_desc": "伙伴想要执行一项需要你确认的操作。",
+    "proactive_desc": "伙伴想向你确认一个问题。",
+    "lifecycle_desc": "会话即将进入自动处理流程，需要你确认。",
+    "dock_action": "操作：{{action}}",
+    "reject": "拒绝",
+    "always": "始终允许",
+    "once": "本次允许",
+    "always_disabled_hint": "该操作在排除列表中，无法始终允许",
+    "reject_feedback_placeholder": "说明拒绝原因或纠正方向…",
+    "custom_answer_placeholder": "输入你的回答或说明…",
+    "custom_answer": "自定义回答",
+    "submit_answer": "提交回答",
+    "confirm": "确认",
+    "pending_badge": "待确认",
+    "resolved_badge": "已确认",
+    "unavailable": "操作确认服务未就绪",
+    "reply_failed": "确认操作失败"
   }
 }

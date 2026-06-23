@@ -62,7 +62,16 @@
     "exit_hint": "再按一次回到桌面",
     "search_hint": "搜尋記憶...",
     "please_search": "請搜尋",
-    "weekdays": ["", "週一", "週二", "週三", "週四", "週五", "週六", "週日"],
+    "weekdays": [
+      "",
+      "週一",
+      "週二",
+      "週三",
+      "週四",
+      "週五",
+      "週六",
+      "週日"
+    ],
     "months": [
       "一月",
       "二月",
@@ -748,7 +757,14 @@
     "delete_all_files": "清理该会话所有附件",
     "open_file_location": "在文件夹中显示",
     "attachment_preview_image": "查看原图",
-    "attachment_confirm_keyword": "確定"
+    "attachment_confirm_keyword": "確定",
+    "agent_gate_title": "夥伴操作門控",
+    "agent_gate_desc": "控制夥伴執行寫入、修改等敏感操作前是否需要你確認。",
+    "agent_gate_manual": "逐項確認",
+    "agent_gate_full_trust": "完全信任",
+    "agent_gate_exclusion_title": "始終需確認的操作",
+    "agent_gate_allowlist_title": "始終允許列表",
+    "agent_gate_allowlist_empty": "暫無條目；在聊天中點「始終允許」後會出現在這裡。"
   },
   "data_sync": {
     "title": "資料同步",
@@ -1550,7 +1566,9 @@
       "compress_context_upstream": "上下文上行壓縮",
       "compress_context_upstream_desc": "在下次請求送給模型之前，將較早對話合併為滾動摘要（上行）。",
       "compress_context_downstream": "上下文下行壓縮",
-      "compress_context_downstream_desc": "在助手回覆落盤後更新摘要並剪枝過長工具輸出（下行）。"
+      "compress_context_downstream_desc": "在助手回覆落盤後更新摘要並剪枝過長工具輸出（下行）。",
+      "companion_ask": "夥伴提問",
+      "companion_ask_desc": "向使用者提出澄清問題，可附帶選項；在使用者回答前會阻塞等待確認。"
     },
     "chat": {
       "companion_mode": "深度陪伴",
@@ -1582,7 +1600,7 @@
       "ai_label": "AI 夥伴",
       "regenerate": "重新生成",
       "copy": "複製",
-      "input_hint": "輸入訊息...",
+      "input_hint": "輸入訊息，Shift+Enter 換行",
       "err_no_model": "請先在設定中配置 AI 模型",
       "cost_detail_title": "費用估算詳情",
       "cost_total": "消耗總計",
@@ -2077,6 +2095,7 @@
     "commit_all_success_count": "已暂存并提交 {{count}} 个文件",
     "commit_all_success_count_pushing": "已提交 {{count}} 个文件，正在推送...",
     "git_commit_failed": "提交失败",
+    "author_not_configured": "請先在「Git 提交簽名」中填寫用戶名和郵箱後再提交",
     "git_rollback_failed": "回滚失败",
     "rollback_success": "回滚成功",
     "git_init_success": "Git 仓库初始化成功",
@@ -2214,7 +2233,48 @@
   "nav": {
     "diary": "日記",
     "agent": "夥伴",
+    "agent_workspace": "Agent",
     "summary": "概覽"
+  },
+  "agent_workspace": {
+    "folder": "工作資料夾",
+    "no_folder": "未選擇資料夾",
+    "pick_folder": "選擇資料夾",
+    "pick_folder_hint": "請先選擇資料夾",
+    "collapse_sidebar": "收起側欄",
+    "expand_sidebar": "展開側欄",
+    "sessions_title": "會話",
+    "no_sessions": "尚無工作區會話",
+    "delete_session": "刪除會話",
+    "delete_session_confirm": "確定刪除此工作區會話？相關對話記錄也會被移除。",
+    "file_tree": "檔案樹",
+    "empty_tree": "資料夾為空",
+    "empty_state": "在左側打開資料夾，選擇或開始一段 Agent 對話。",
+    "new_session": "新對話",
+    "open_folder": "打開資料夾",
+    "no_sessions_in_folder": "暫無對話",
+    "select_session_hint": "在左側展開資料夾並選擇對話，或在下方輸入開始新對話。",
+    "workspaces_title": "工作區",
+    "add_workspace": "新增工作區",
+    "no_workspace": "尚無工作區",
+    "pick_workspace_hint": "請先選擇或新增工作區",
+    "select_change_hint": "選擇檔案查看 diff",
+    "collapse_changes_panel": "收起變更面板",
+    "expand_changes_panel": "展開變更面板",
+    "input_placeholder": "描述你想對資料夾做的修改…"
+  },
+  "file_change": {
+    "changes_title": "變更列表",
+    "no_changes": "暫無檔案變更"
+  },
+  "round_rollback": {
+    "action": "回滾本輪",
+    "confirm_title": "回滾本輪變更？",
+    "confirm_desc": "將恢復本輪對話開始前的檔案狀態，此操作不可撤銷。",
+    "confirm": "確認回滾",
+    "cancel": "取消",
+    "success": "已回滾本輪變更",
+    "failed": "回滾失敗"
   },
   "titlebar": {
     "minimize": "最小化",
@@ -2462,5 +2522,25 @@
       "testing": "测试中...",
       "test_button": "测试"
     }
+  },
+  "agent_gate": {
+    "dock_title": "夥伴操作確認",
+    "dock_desc": "夥伴想要執行一項需要你確認的操作。",
+    "proactive_desc": "夥伴想向你確認一個問題。",
+    "lifecycle_desc": "會話即將進入自動處理流程，需要你確認。",
+    "dock_action": "操作：{{action}}",
+    "reject": "拒絕",
+    "always": "始終允許",
+    "once": "本次允許",
+    "always_disabled_hint": "該操作在排除列表中，無法始終允許",
+    "reject_feedback_placeholder": "說明拒絕原因或糾正方向…",
+    "custom_answer_placeholder": "輸入你的回答或說明…",
+    "custom_answer": "自訂回答",
+    "submit_answer": "提交回答",
+    "confirm": "確認",
+    "pending_badge": "待確認",
+    "resolved_badge": "已確認",
+    "unavailable": "操作確認服務未就緒",
+    "reply_failed": "確認操作失敗"
   }
 }

@@ -62,7 +62,16 @@
     "exit_hint": "もう一度押すと終了します",
     "search_hint": "記憶を検索...",
     "please_search": "検索",
-    "weekdays": ["", "月", "火", "水", "木", "金", "土", "日"],
+    "weekdays": [
+      "",
+      "月",
+      "火",
+      "水",
+      "木",
+      "金",
+      "土",
+      "日"
+    ],
     "months": [
       "1月",
       "2月",
@@ -762,7 +771,14 @@
     "delete_all_files": "清理该会话所有附件",
     "open_file_location": "在文件夹中显示",
     "attachment_preview_image": "查看原图",
-    "attachment_confirm_keyword": "确定"
+    "attachment_confirm_keyword": "确定",
+    "agent_gate_title": "パートナー操作ゲート",
+    "agent_gate_desc": "書き込みや変更などの敏感な操作の前に確認を求めるかを制御します。",
+    "agent_gate_manual": "都度確認",
+    "agent_gate_full_trust": "完全信頼",
+    "agent_gate_exclusion_title": "常に確認が必要な操作",
+    "agent_gate_allowlist_title": "常に許可リスト",
+    "agent_gate_allowlist_empty": "まだ項目がありません。チャットで「常に許可」を押すとここに表示されます。"
   },
   "data_sync": {
     "title": "データ同期",
@@ -1564,7 +1580,9 @@
       "compress_context_upstream": "コンテキスト上行圧縮",
       "compress_context_upstream_desc": "次のモデルリクエストの前に、古い会話をローリング要約にまとめます（上行）。",
       "compress_context_downstream": "コンテキスト下行圧縮",
-      "compress_context_downstream_desc": "アシスタント応答の保存後に要約を更新し、長いツール出力を剪定します（下行）。"
+      "compress_context_downstream_desc": "アシスタント応答の保存後に要約を更新し、長いツール出力を剪定します（下行）。",
+      "companion_ask": "パートナー質問",
+      "companion_ask_desc": "ユーザーに確認質問をし、必要なら選択肢を提示します。回答までブロックします。"
     },
     "chat": {
       "companion_mode": "ディープ・コンパニオン",
@@ -1596,7 +1614,7 @@
       "ai_label": "AIパートナー",
       "regenerate": "再生成",
       "copy": "コピー",
-      "input_hint": "メッセージを入力...",
+      "input_hint": "メッセージを入力… Shift+Enter で改行",
       "err_no_model": "設定でAIモデルを先に設定してください",
       "cost_detail_title": "費用見積詳細",
       "cost_total": "合計消費",
@@ -2146,7 +2164,48 @@
   "nav": {
     "diary": "日記",
     "agent": "パートナー",
+    "agent_workspace": "Agent",
     "summary": "概要"
+  },
+  "agent_workspace": {
+    "folder": "作業フォルダ",
+    "no_folder": "フォルダ未選択",
+    "pick_folder": "フォルダを選択",
+    "pick_folder_hint": "先にフォルダを選択してください",
+    "collapse_sidebar": "サイドバーを閉じる",
+    "expand_sidebar": "サイドバーを開く",
+    "sessions_title": "セッション",
+    "no_sessions": "ワークスペースセッションはありません",
+    "delete_session": "セッションを削除",
+    "delete_session_confirm": "このワークスペースセッションを削除しますか？会話履歴も削除されます。",
+    "file_tree": "ファイルツリー",
+    "empty_tree": "フォルダは空です",
+    "empty_state": "左側でフォルダを開き、会話を選ぶか新しい Agent 会話を始めてください。",
+    "new_session": "新しい会話",
+    "open_folder": "フォルダを開く",
+    "no_sessions_in_folder": "会話がありません",
+    "select_session_hint": "左側でフォルダを展開して会話を選ぶか、下の入力欄から新規会話を開始してください。",
+    "workspaces_title": "ワークスペース",
+    "add_workspace": "ワークスペースを追加",
+    "no_workspace": "ワークスペースがありません",
+    "pick_workspace_hint": "先にワークスペースを選択または追加してください",
+    "select_change_hint": "ファイルを選択して diff を表示",
+    "collapse_changes_panel": "変更パネルを閉じる",
+    "expand_changes_panel": "変更パネルを開く",
+    "input_placeholder": "このフォルダで行いたい変更を説明してください…"
+  },
+  "file_change": {
+    "changes_title": "変更一覧",
+    "no_changes": "ファイル変更はまだありません"
+  },
+  "round_rollback": {
+    "action": "このラウンドをロールバック",
+    "confirm_title": "このラウンドの変更をロールバックしますか？",
+    "confirm_desc": "このラウンド開始前のファイル状態に戻します。元に戻せません。",
+    "confirm": "ロールバック",
+    "cancel": "キャンセル",
+    "success": "ラウンドをロールバックしました",
+    "failed": "ロールバックに失敗しました"
   },
   "titlebar": {
     "minimize": "最小化",
@@ -2413,6 +2472,7 @@
     "commit_all_success_count": "已暂存并提交 {{count}} 个文件",
     "commit_all_success_count_pushing": "已提交 {{count}} 个文件，正在推送...",
     "git_commit_failed": "提交失败",
+    "author_not_configured": "コミット前に「Git コミット署名」でユーザー名とメールアドレスを設定してください",
     "git_rollback_failed": "回滚失败",
     "rollback_success": "回滚成功",
     "git_init_success": "Git 仓库初始化成功",
@@ -2474,5 +2534,25 @@
       "testing": "测试中...",
       "test_button": "测试"
     }
+  },
+  "agent_gate": {
+    "dock_title": "パートナー操作の確認",
+    "dock_desc": "パートナーが確認が必要な操作を実行しようとしています。",
+    "proactive_desc": "パートナーから質問があります。",
+    "lifecycle_desc": "セッションが自動処理に入る前に確認が必要です。",
+    "dock_action": "操作: {{action}}",
+    "reject": "拒否",
+    "always": "常に許可",
+    "once": "今回のみ許可",
+    "always_disabled_hint": "この操作は除外リストにあり、常に許可できません",
+    "reject_feedback_placeholder": "拒否理由や修正方針を入力…",
+    "custom_answer_placeholder": "回答やフィードバックを入力…",
+    "custom_answer": "自由入力",
+    "submit_answer": "回答を送信",
+    "confirm": "確認",
+    "pending_badge": "確認待ち",
+    "resolved_badge": "確認済み",
+    "unavailable": "操作確認サービスが利用できません",
+    "reply_failed": "確認の送信に失敗しました"
   }
 }

@@ -64,8 +64,30 @@
     "exit_hint": "Press again to exit",
     "search_hint": "Search memories...",
     "please_search": "Search",
-    "weekdays": ["", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-    "months": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+    "weekdays": [
+      "",
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu",
+      "Fri",
+      "Sat",
+      "Sun"
+    ],
+    "months": [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec"
+    ],
     "unknown": "Unknown",
     "not_configured": "Not Configured",
     "nickname": "Nickname",
@@ -773,7 +795,14 @@
     "delete_all_files": "Clear All Attachments for This Session",
     "open_file_location": "Show in Folder",
     "attachment_preview_image": "View Original Image",
-    "attachment_confirm_keyword": "confirm"
+    "attachment_confirm_keyword": "confirm",
+    "agent_gate_title": "Companion action gate",
+    "agent_gate_desc": "Control whether sensitive companion actions require your confirmation.",
+    "agent_gate_manual": "Ask each time",
+    "agent_gate_full_trust": "Full trust",
+    "agent_gate_exclusion_title": "Always-ask actions",
+    "agent_gate_allowlist_title": "Always-allow list",
+    "agent_gate_allowlist_empty": "No entries yet. Use Always allow in chat to add one."
   },
   "data_sync": {
     "title": "Data Sync",
@@ -1595,7 +1624,9 @@
       "compress_context_upstream": "Upstream context compression",
       "compress_context_upstream_desc": "Merge earlier dialogue into a rolling summary before the next model request (upstream).",
       "compress_context_downstream": "Downstream context compression",
-      "compress_context_downstream_desc": "Refresh the summary and prune long tool outputs after the assistant reply is saved (downstream)."
+      "compress_context_downstream_desc": "Refresh the summary and prune long tool outputs after the assistant reply is saved (downstream).",
+      "companion_ask": "Companion ask",
+      "companion_ask_desc": "Ask the user a clarifying question with optional choices; blocks until the user responds."
     },
     "chat": {
       "companion_mode": "Deep Companion",
@@ -1627,7 +1658,7 @@
       "ai_label": "AI Companion",
       "regenerate": "Regenerate",
       "copy": "Copy",
-      "input_hint": "Type a message...",
+      "input_hint": "Type a message… Shift+Enter for new line",
       "err_no_model": "Please configure an AI model in Settings first",
       "cost_detail_title": "Cost Estimation Details",
       "cost_total": "Total Cost",
@@ -2193,8 +2224,55 @@
   "nav": {
     "diary": "Diary",
     "agent": "Partner",
+    "agent_workspace": "Agent",
     "summary": "Archive",
     "settings": "Settings"
+  },
+  "agent_workspace": {
+    "folder": "Working folder",
+    "no_folder": "No folder selected",
+    "pick_folder": "Choose folder",
+    "pick_folder_hint": "Select a folder first",
+    "collapse_sidebar": "Collapse sidebar",
+    "expand_sidebar": "Expand sidebar",
+    "sessions_title": "Sessions",
+    "no_sessions": "No workspace sessions yet",
+    "delete_session": "Delete session",
+    "delete_session_confirm": "Delete this workspace session? Its chat history will also be removed.",
+    "file_tree": "File tree",
+    "empty_tree": "Folder is empty",
+    "empty_state": "Open a folder on the left, then select or start an Agent conversation.",
+    "new_session": "New chat",
+    "open_folder": "Open folder",
+    "no_sessions_in_folder": "No conversations yet",
+    "select_session_hint": "Expand a folder on the left and pick a conversation, or type below to start a new one.",
+    "workspaces_title": "Workspaces",
+    "add_workspace": "Add workspace",
+    "no_workspace": "No workspaces yet",
+    "pick_workspace_hint": "Select or add a workspace first",
+    "select_change_hint": "Select a file to view diff",
+    "collapse_changes_panel": "Collapse changes panel",
+    "expand_changes_panel": "Expand changes panel",
+    "input_placeholder": "Describe the changes you want in this folder…"
+  },
+  "file_change": {
+    "changes_title": "Changes",
+    "no_changes": "No file changes yet",
+    "no_preview": "No preview available",
+    "no_diff": "No line diff available",
+    "kind_create": "Created",
+    "kind_modify": "Modified",
+    "kind_delete": "Deleted",
+    "kind_rename": "Renamed"
+  },
+  "round_rollback": {
+    "action": "Rollback round",
+    "confirm_title": "Rollback this round?",
+    "confirm_desc": "Files will be restored to their state before this round. This cannot be undone.",
+    "confirm": "Rollback",
+    "cancel": "Cancel",
+    "success": "Round rolled back",
+    "failed": "Rollback failed"
   },
   "image_preview": {
     "zoom_in": "Zoom in",
@@ -2499,6 +2577,7 @@
     "commit_all_success_count": "Staged and committed {{count}} files",
     "commit_all_success_count_pushing": "Committed {{count}} files, pushing...",
     "git_commit_failed": "Commit failed",
+    "author_not_configured": "Please set your Git commit username and email in Git Commit Signature before committing",
     "git_rollback_failed": "Rollback failed",
     "rollback_success": "Rollback successful",
     "git_init_success": "Git repository initialized successfully",
@@ -2577,5 +2656,25 @@
       "testing": "Testing...",
       "test_button": "Test"
     }
+  },
+  "agent_gate": {
+    "dock_title": "Companion action confirmation",
+    "dock_desc": "Your companion wants to perform an action that needs your approval.",
+    "proactive_desc": "Your companion has a question for you.",
+    "lifecycle_desc": "The session is about to run an automatic step that needs your confirmation.",
+    "dock_action": "Action: {{action}}",
+    "reject": "Reject",
+    "always": "Always allow",
+    "once": "Allow once",
+    "always_disabled_hint": "This action is on the exclusion list and cannot be always allowed",
+    "reject_feedback_placeholder": "Explain why you are rejecting or how to correct…",
+    "custom_answer_placeholder": "Type your answer or feedback…",
+    "custom_answer": "Custom answer",
+    "submit_answer": "Submit answer",
+    "confirm": "Confirm",
+    "pending_badge": "Pending",
+    "resolved_badge": "Resolved",
+    "unavailable": "Action confirmation is unavailable",
+    "reply_failed": "Failed to submit confirmation"
   }
 }
