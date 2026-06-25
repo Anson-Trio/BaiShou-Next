@@ -8,6 +8,12 @@ export interface SystemPromptBuilderOptions {
   userProfileBlock?: string
   /** 伙伴使用写日记 / 编辑日记工具时的书写规范 */
   diaryAiWritingPrompt?: string
+  /** 表情包配置，包含可用表情包列表和回复概率 */
+  emojiConfig?: {
+    enabled: boolean
+    replyProbability: number
+    emojis: Array<{ id: string; name: string; relativePath: string }>
+  } | null
 }
 
 export class SystemPromptBuilder {
@@ -21,7 +27,8 @@ export class SystemPromptBuilder {
       customPersona,
       customGuidelines,
       userProfileBlock,
-      diaryAiWritingPrompt
+      diaryAiWritingPrompt,
+      emojiConfig
     } = options
 
     const buffer: string[] = []
@@ -112,6 +119,30 @@ export class SystemPromptBuilder {
       buffer.push('<available_tools>')
       buffer.push('No tools are currently available.')
       buffer.push('</available_tools>')
+      buffer.push('')
+    }
+
+    // 表情包工具上下文注入
+    if (emojiConfig && emojiConfig.enabled && emojiConfig.emojis && emojiConfig.emojis.length > 0) {
+      const probability = Math.round((emojiConfig.replyProbability ?? 0.3) * 100)
+      buffer.push('<emoji_stickers>')
+      buffer.push(
+        `You have access to ${emojiConfig.emojis.length} sticker(s) that you can send using the "emoji_send" tool. ` +
+        `There is approximately a ${probability}% chance you should send a sticker in your response — ` +
+        `use it naturally when it fits the mood (humor, empathy, celebration, etc.), but do NOT send a sticker on every reply.`
+      )
+      buffer.push('')
+      buffer.push('Available sticker IDs and names:')
+      for (const emoji of emojiConfig.emojis) {
+        // Display ID without file extension for cleaner reference
+        const displayId = emoji.id.replace(/\.[^.]+$/, '')
+        buffer.push(`- ${displayId}: ${emoji.name}`)
+      }
+      buffer.push('')
+      buffer.push('To send a sticker, call the emoji_send tool with the emoji_id parameter set to one of the IDs above. The emoji_id is flexible — you can pass the ID with or without the file extension, or use the display name.')
+      buffer.push('')
+      buffer.push('IMPORTANT: After calling emoji_send, continue your text response normally. Do NOT describe or reference the sticker image in your text. The sticker will be displayed as a separate message automatically.')
+      buffer.push('</emoji_stickers>')
       buffer.push('')
     }
 

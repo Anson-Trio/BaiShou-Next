@@ -398,7 +398,8 @@ export async function buildStreamConfig(
     web_search_enabled: searchMode ?? false,
     ...webSearchConfigToUserConfig(webSearchConfig),
     userCard,
-    diaryAiWritingPrompt: buildDiaryWritingGuidelinesForSystemPrompt(diaryTemplateConfig)
+    diaryAiWritingPrompt: buildDiaryWritingGuidelinesForSystemPrompt(diaryTemplateConfig),
+    emojiConfig: toolManagementConfig?.emojiConfig || undefined
   }
 
   const namingModelConfigured =

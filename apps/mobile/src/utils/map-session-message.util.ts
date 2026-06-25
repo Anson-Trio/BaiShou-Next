@@ -88,6 +88,8 @@ export function mapSessionMessageFromDb(
         result: data.result
       }
     })
+    // 过滤掉 emoji_send 工具调用（表情包作为独立图片消息显示，不显示工具卡片）
+    .filter((inv) => inv.toolName !== 'emoji_send')
 
   const attachments = mapAttachmentsFromParts(parts)?.map((att) => ({
     ...att,

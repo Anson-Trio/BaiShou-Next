@@ -273,7 +273,8 @@ export class AgentSessionService {
         diaryAiWritingPrompt:
           typeof userConfig?.['diaryAiWritingPrompt'] === 'string'
             ? userConfig['diaryAiWritingPrompt']
-            : undefined
+            : undefined,
+        emojiConfig: (mergedUserConfig?.['emojiConfig'] as any) || null
       })
 
       // 4. 调用 Vercel streamText
@@ -387,7 +388,8 @@ export class AgentSessionService {
         systemPrompt: builtSystemPrompt,
         namingModelConfigured: systemModels?.namingModelConfigured,
         namingProvider: systemModels?.namingProvider,
-        namingModelId: systemModels?.namingModelId
+        namingModelId: systemModels?.namingModelId,
+        userConfig: mergedUserConfig
       })
 
       // 7. 向外抛出完成/错误回调（仅一次，避免覆盖真实 API 错误）

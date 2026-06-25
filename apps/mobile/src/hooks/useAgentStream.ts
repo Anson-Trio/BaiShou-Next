@@ -38,6 +38,11 @@ interface ToolCallInfo {
   result?: unknown
 }
 
+export interface PendingEmoji {
+  /** emoji_id，用于从 emojiConfig 中查找对应的表情包 */
+  emojiId: string
+}
+
 export function useAgentStream(
   currentSessionId: string | null,
   currentProviderId: string | null,
@@ -74,6 +79,7 @@ export function useAgentStream(
   })
   const [activeTool, setActiveTool] = useState<ToolCallInfo | null>(null)
   const [completedTools, setCompletedTools] = useState<ToolCallInfo[]>([])
+  const [pendingEmojis, setPendingEmojis] = useState<PendingEmoji[]>([])
   const [streamError, setStreamError] = useState<string | null>(null)
   const [isCompressing, setIsCompressing] = useState(false)
   const [compressionPhase, setCompressionPhase] = useState<'auto' | 'manual'>('auto')
@@ -367,15 +373,36 @@ export function useAgentStream(
     activeToolRef.current = null
     setActiveTool(null)
     setCompletedTools([])
+    setPendingEmojis([])
   }, [clearStreamingFlushTimer])
 
-  const handleToolCallStart = useCallback((toolName: string) => {
+  const handleToolCallStart = useCallback((toolName: string, args?: unknown) => {
+    // emoji_send 工具：即时将表情包加入 pendingEmojis（在流式文本之前显示）
+    if (toolName === 'emoji_send') {
+      let emojiId: string | null = null
+      if (typeof args === 'object' && args !== null) {
+        emojiId = String((args as Record<string, unknown>).emoji_id ?? '')
+      } else if (typeof args === 'string') {
+        try {
+          const parsed = JSON.parse(args)
+          if (parsed?.emoji_id) emojiId = String(parsed.emoji_id)
+        } catch {
+          if (args.length > 0) emojiId = args
+        }
+      }
+      if (emojiId && emojiId.length > 0) {
+        setPendingEmojis((prev) => [...prev, { emojiId }])
+      }
+      return
+    }
     const tool = { name: toolName, startTime: Date.now() }
     activeToolRef.current = tool
     setActiveTool(tool)
   }, [])
 
   const handleToolCallResult = useCallback((toolName: string, result: unknown) => {
+    // emoji_send 工具不在流式阶段显示工具卡片
+    if (toolName === 'emoji_send') return
     const startTime = activeToolRef.current?.startTime ?? Date.now()
     activeToolRef.current = null
     setActiveTool(null)
@@ -401,6 +428,7 @@ export function useAgentStream(
       setCompressionReasoning('')
       setCompressionTriggerMessageId(null)
       resetStreamingBuffers()
+      setPendingEmojis([])
     },
     [resetCompressionBuffers, resetStreamingBuffers, setLoading]
   )
@@ -1063,6 +1091,7 @@ export function useAgentStream(
     tokenUsage,
     activeTool,
     completedTools,
+    pendingEmojis,
     handleSend,
     handleStop,
     handleRegenerate,

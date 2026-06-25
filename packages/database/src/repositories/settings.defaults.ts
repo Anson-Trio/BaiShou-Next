@@ -251,7 +251,12 @@ export const DEFAULT_DIARY_TEMPLATE_CONFIG: DiaryTemplateConfig = {}
 
 export const DEFAULT_TOOL_MANAGEMENT_CONFIG: ToolManagementConfig = {
   disabledToolIds: [],
-  customConfigs: {}
+  customConfigs: {},
+  emojiConfig: {
+    enabled: true,
+    replyProbability: 0.3,
+    emojis: []
+  }
 }
 
 export const DEFAULT_MCP_SERVER_CONFIG: McpServerConfig = {

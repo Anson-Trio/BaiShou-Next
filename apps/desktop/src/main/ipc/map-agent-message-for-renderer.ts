@@ -52,6 +52,8 @@ export function mapAgentMessageForRenderer(
       args: p.data?.arguments || {},
       result: p.data?.result
     }))
+    // 过滤掉 emoji_send 工具调用（表情包已作为图片附件显示，不需要在工具结果中重复展示）
+    .filter((inv) => inv.toolName !== 'emoji_send')
 
   const attachments = mapAttachmentsFromParts(parts)
   const compactionPart = parts.find((p) => p.type === 'compaction')
