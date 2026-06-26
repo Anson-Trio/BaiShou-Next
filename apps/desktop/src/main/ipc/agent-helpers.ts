@@ -18,6 +18,7 @@ import {
 } from '@baishou/core-desktop'
 import { DesktopAttachmentManagerService } from '../services/desktop-attachment-manager.service'
 import { getAgentGate } from '../services/agent-gate.service'
+import { resolveActiveWorkspaceToolContext } from '../services/agent-workspace-tool-context'
 import { fileSystem, pathService, getActiveVaultShadowRepo, vaultService } from './vault.ipc'
 import { settingsManager } from './settings.ipc'
 import {
@@ -31,6 +32,9 @@ import {
   formatUserCardFromProfile,
   isConfiguredProviderId,
   isConfiguredDialogueModelId,
+  coalesceConfiguredId,
+  requireResolvedDialogueModel,
+  type ResolvedDialogueModel,
   BAISHOU_AGENT_GATE_CONFIG_KEY,
   DEFAULT_BAISHOU_AGENT_GATE_CONFIG,
   type BaishouAgentGateConfig
@@ -290,16 +294,64 @@ export async function getActiveProvider(requestedProviderId?: string) {
   const providers = (await settingsManager.get<AIProviderConfig[]>('ai_providers')) || []
   const globalModels = await settingsManager.get<GlobalModelsConfig>('global_models')
 
-  const providerId = requestedProviderId || globalModels?.globalDialogueProviderId
-  const config = providers.find((p: AIProviderConfig) => p.id === providerId)
+  const providerId = coalesceConfiguredId(
+    requestedProviderId,
+    globalModels?.globalDialogueProviderId
+  )
+  const config = providerId ? providers.find((p: AIProviderConfig) => p.id === providerId) : undefined
 
-  const actualConfig = config || providers.find((p: AIProviderConfig) => p.isEnabled)
-  if (!actualConfig) throw new Error('No active provider configured')
+  if (config) {
+    const registry = AIProviderRegistry.getInstance()
+    const provider = registry.getOrUpdateProvider(config)
+    if (!provider) throw new Error(`Failed to instantiate provider ${config.id}`)
+    return provider
+  }
+
+  if (providerId) {
+    throw new Error(`Provider "${providerId}" is not configured`)
+  }
+
+  const fallbackConfig = providers.find((p: AIProviderConfig) => p.isEnabled)
+  if (!fallbackConfig) throw new Error('No active provider configured')
 
   const registry = AIProviderRegistry.getInstance()
-  const provider = registry.getOrUpdateProvider(actualConfig)
-  if (!provider) throw new Error(`Failed to instantiate provider ${actualConfig.id}`)
+  const provider = registry.getOrUpdateProvider(fallbackConfig)
+  if (!provider) throw new Error(`Failed to instantiate provider ${fallbackConfig.id}`)
   return provider
+}
+
+/** 流式对话权威模型链：伙伴 → 请求 → 全局 → 错误（不伪造默认模型） */
+export async function resolveStreamDialogueSelection(params: {
+  sessionId?: string
+  requestedProviderId?: string
+  requestedModelId?: string
+}): Promise<ResolvedDialogueModel & { providerId: string; modelId: string }> {
+  const globalModels = await settingsManager.get<GlobalModelsConfig>('global_models')
+  let assistantProviderId: string | undefined
+  let assistantModelId: string | undefined
+
+  if (params.sessionId) {
+    try {
+      const { realSessionRepo, realAssistantRepo } = getAgentManagers()
+      const session = await realSessionRepo.getSessionById(params.sessionId)
+      if (session?.assistantId) {
+        const assistant = await realAssistantRepo.findById(session.assistantId)
+        assistantProviderId = assistant?.providerId ?? undefined
+        assistantModelId = assistant?.modelId ?? undefined
+      }
+    } catch (e: any) {
+      logger.warn('[resolveStreamDialogueSelection] failed to load assistant:', e?.message || e)
+    }
+  }
+
+  return requireResolvedDialogueModel({
+    assistantProviderId,
+    assistantModelId,
+    requestedProviderId: params.requestedProviderId,
+    requestedModelId: params.requestedModelId,
+    globalDialogueProviderId: globalModels?.globalDialogueProviderId,
+    globalDialogueModelId: globalModels?.globalDialogueModelId
+  })
 }
 
 /**
@@ -326,33 +378,39 @@ export async function buildStreamConfig(
     logger.warn('[buildStreamConfig] Failed to load user profile:', e.message || e)
   }
 
-  const namingProviderId = globalModels?.globalNamingProviderId || provider.config.id
+  const namingProviderId =
+    coalesceConfiguredId(globalModels?.globalNamingProviderId) || provider.config.id
   let namingModelId =
-    globalModels?.globalNamingModelId ||
-    requestedModelId ||
-    globalModels?.globalDialogueModelId ||
-    'deepseek-chat'
+    coalesceConfiguredId(
+      globalModels?.globalNamingModelId,
+      requestedModelId,
+      globalModels?.globalDialogueModelId
+    ) ?? ''
   let namingProvider = provider
   if (namingProviderId !== provider.config.id) {
     try {
       namingProvider = await getActiveProvider(namingProviderId)
     } catch (e) {
-      namingModelId = requestedModelId || globalModels?.globalDialogueModelId || 'deepseek-chat'
+      namingModelId =
+        coalesceConfiguredId(requestedModelId, globalModels?.globalDialogueModelId) ?? ''
     }
   }
 
-  const summaryProviderId = globalModels?.globalSummaryProviderId || provider.config.id
+  const summaryProviderId =
+    coalesceConfiguredId(globalModels?.globalSummaryProviderId) || provider.config.id
   let summaryModelId =
-    globalModels?.globalSummaryModelId ||
-    requestedModelId ||
-    globalModels?.globalDialogueModelId ||
-    'deepseek-chat'
+    coalesceConfiguredId(
+      globalModels?.globalSummaryModelId,
+      requestedModelId,
+      globalModels?.globalDialogueModelId
+    ) ?? ''
   let summaryProvider = provider
   if (summaryProviderId !== provider.config.id) {
     try {
       summaryProvider = await getActiveProvider(summaryProviderId)
     } catch (e) {
-      summaryModelId = requestedModelId || globalModels?.globalDialogueModelId || 'deepseek-chat'
+      summaryModelId =
+        coalesceConfiguredId(requestedModelId, globalModels?.globalDialogueModelId) ?? ''
     }
   }
 
@@ -489,6 +547,13 @@ export async function buildMcpToolContext(): Promise<ToolContext> {
     webSearchResultFetcher: createWebSearchResultFetcher(),
     fetchSearchPage: createFetchSearchPage(),
     agentGate: await getAgentGate()
+  }
+
+  // When an Agent Workspace stream is active, reuse its folder binding so workspace_*
+  // tools stay available for MCP callers that share buildMcpToolContext (e.g. settings preview).
+  const activeWorkspace = await resolveActiveWorkspaceToolContext()
+  if (activeWorkspace) {
+    context.workspace = activeWorkspace
   }
 
   mcpToolContextCache = {

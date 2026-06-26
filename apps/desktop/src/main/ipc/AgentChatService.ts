@@ -7,7 +7,8 @@ import {
   createDiarySearcher,
   createWebSearchResultFetcher,
   createFetchSearchPage,
-  buildStreamConfig
+  buildStreamConfig,
+  resolveStreamDialogueSelection
 } from './agent-helpers'
 import { settingsManager } from './settings.ipc'
 import { searchService } from '../services/search.service'
@@ -108,9 +109,15 @@ export class AgentChatService {
       const { sessionManager } = getAgentManagers()
       const assistantContextWindow = await this.getAssistantContextWindow(args.sessionId)
 
-      const { provider, globalModels, systemModels, userConfig } = await buildStreamConfig(
-        args.providerId,
-        args.modelId,
+      const resolved = await resolveStreamDialogueSelection({
+        sessionId: args.sessionId,
+        requestedProviderId: args.providerId,
+        requestedModelId: args.modelId
+      })
+
+      const { provider, systemModels, userConfig } = await buildStreamConfig(
+        resolved.providerId,
+        resolved.modelId,
         args.searchMode,
         assistantContextWindow
       )
@@ -121,7 +128,7 @@ export class AgentChatService {
         userText: args.text,
         userMessageId: args.userMsgId,
         provider,
-        modelId: args.modelId || globalModels?.globalDialogueModelId || 'deepseek-chat',
+        modelId: resolved.modelId,
         systemModels,
         userConfig,
         attachments: args.attachments,
@@ -137,11 +144,14 @@ export class AgentChatService {
     } catch (error: any) {
       if (error.name === 'AbortError') {
         cancelAgentGateSession(args.sessionId, 'stream_stopped')
-        event.sender.send('agent:stream-finish', { success: true })
+        event.sender.send('agent:stream-finish', { sessionId: args.sessionId, success: true })
         return true
       }
       logger.error('Agent IPC stream error:', error)
-      event.sender.send('agent:stream-finish', { error: error.message || 'Stream Error' })
+      event.sender.send('agent:stream-finish', {
+        sessionId: args.sessionId,
+        error: error.message || 'Stream Error'
+      })
       return false
     } finally {
       AgentChatCoreService.resetAbortController()

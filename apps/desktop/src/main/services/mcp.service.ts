@@ -4,7 +4,6 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js'
-import type { SettingsRepository } from '@baishou/database-desktop'
 import { APP_VERSION } from '../../app-version'
 // @ts-ignore
 import { Server as HttpServer } from 'http'
@@ -12,6 +11,7 @@ import { Server as HttpServer } from 'http'
 import { ToolRegistry, type ToolContext, createBaishouMcpServer } from '@baishou/ai'
 import { isMcpRequestAuthorized, logger } from '@baishou/shared'
 import { buildMcpToolContext } from '../ipc/agent-helpers'
+import type { DesktopMcpConfigReader } from './desktop-mcp-config.store'
 
 interface SseMcpSession {
   server: Server
@@ -30,7 +30,7 @@ export class McpService {
   }
 
   constructor(
-    private readonly settingsRepo: SettingsRepository,
+    private readonly configReader: DesktopMcpConfigReader,
     private readonly toolRegistry?: ToolRegistry,
     private readonly resolveToolContext: () => Promise<ToolContext> = buildMcpToolContext
   ) {
@@ -54,7 +54,7 @@ export class McpService {
   }
 
   private async ensureAuthorized(req: express.Request, res: express.Response): Promise<boolean> {
-    const config = await this.settingsRepo.getMcpServerConfig()
+    const config = await this.configReader.getMcpServerConfig()
     const authHeader = req.headers.authorization
     const headerValue = Array.isArray(authHeader) ? authHeader[0] : authHeader
     if (isMcpRequestAuthorized(config, headerValue)) return true
@@ -226,7 +226,7 @@ export class McpService {
   async start(): Promise<void> {
     if (this.isRunning) return
 
-    const config = await this.settingsRepo.getMcpServerConfig()
+    const config = await this.configReader.getMcpServerConfig()
     const port = config.mcpPort || 31004
 
     return new Promise((resolve, reject) => {
