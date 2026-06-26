@@ -14,8 +14,8 @@ import {
 export function registerStorageIPC() {
   ipcMain.handle('storage:getStats', async () => {
     try {
+      const storageRootPath = await pathService.getRootDirectory()
       const activeVault = vaultService.getActiveVault()
-      const storageRootPath = activeVault ? activeVault.path : await pathService.getRootDirectory()
       const sqlitePath = activeVault
         ? path.join(activeVault.path, 'data.db')
         : path.join(app.getPath('userData'), 'data.db')
@@ -56,7 +56,6 @@ export function registerStorageIPC() {
 
   ipcMain.handle('storage:pickDirectory', async (event) => {
     const window = BrowserWindow.fromWebContents(event.sender)
-    if (!window) return null
     return pickStorageDirectory(window)
   })
 

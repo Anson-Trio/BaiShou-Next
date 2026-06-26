@@ -14,6 +14,7 @@ import { resolveLegacyRootCandidates } from './flutter-legacy-paths.service'
 import { LegacyMigrationService } from './legacy-migration.service'
 import { getDesktopInstallInstanceId } from './install-instance.service'
 import { getAppDb, resetAppDb } from '../db'
+import { isDesktopDevBuild } from '../app-identity'
 
 export interface DesktopLegacyBootstrapResult {
   storageRoot: string
@@ -59,7 +60,7 @@ export async function resolveDesktopStorageBootstrap(
   const primaryLegacy = legacyCandidates[0] ?? null
   const fileSystem = createNodeFileSystem()
 
-  if (needsOnboarding && primaryLegacy && !customStorageRoot) {
+  if (needsOnboarding && primaryLegacy && !customStorageRoot && !isDesktopDevBuild()) {
     customStorageRoot = primaryLegacy
   }
 

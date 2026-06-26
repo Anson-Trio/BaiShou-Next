@@ -8,6 +8,7 @@ import {
   resolvePickedStorageDirectory
 } from '../services/desktop-legacy-bootstrap.service'
 import { resolveLegacyRootCandidates } from '../services/flutter-legacy-paths.service'
+import { isDesktopDevBuild } from '../app-identity'
 
 export function registerOnboardingIPC(onComplete: () => void) {
   const settingsPath = path.join(app.getPath('userData'), 'baishou_settings.json')
@@ -19,15 +20,26 @@ export function registerOnboardingIPC(onComplete: () => void) {
       const legacyRoot = legacyCandidates[0] ?? null
       const root = bootstrap.storageRoot?.trim()
 
+      let currentPath: string
+      if (root) {
+        currentPath = root
+      } else if (bootstrap.needsOnboarding && isDesktopDevBuild()) {
+        currentPath = defaultOnboardingStoragePath()
+      } else {
+        currentPath = legacyRoot || defaultOnboardingStoragePath()
+      }
+
       return {
         needsOnboarding: bootstrap.needsOnboarding,
-        currentPath: root || legacyRoot || defaultOnboardingStoragePath()
+        currentPath
       }
     } catch {
       const legacyCandidates = await resolveLegacyRootCandidates().catch(() => [])
       return {
         needsOnboarding: true,
-        currentPath: legacyCandidates[0] || defaultOnboardingStoragePath()
+        currentPath: isDesktopDevBuild()
+          ? defaultOnboardingStoragePath()
+          : legacyCandidates[0] || defaultOnboardingStoragePath()
       }
     }
   })
