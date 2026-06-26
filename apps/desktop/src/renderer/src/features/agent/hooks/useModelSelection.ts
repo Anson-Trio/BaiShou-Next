@@ -1,52 +1,87 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useSettingsStore } from '@baishou/store'
-import { resolveDialogueModelSelection, resolveProviderListDialogueFallback } from '@baishou/shared'
+import {
+  buildAgentDialogueSelectionState,
+  detectDialogueSelectionSwitches,
+  resolveDialogueModelSelection,
+  type AgentDialogueSelectionState,
+  type AgentDialogueSelectionSwitchEvent,
+  type DialogueModelSelectionSource,
+  UNCONFIGURED_DIALOGUE_MODEL_SENTINEL
+} from '@baishou/shared'
 
 export interface UseModelSelectionParams {
   sessionId: string | undefined
-  currentAssistant: any
+  currentAssistant: { id?: string | number; providerId?: string; modelId?: string } | undefined
 }
 
 export interface UseModelSelectionResult {
   currentProviderId: string
   currentModelId: string
+  modelSelectionSource: DialogueModelSelectionSource
+  selectionState: AgentDialogueSelectionState
+  lastSelectionSwitch: AgentDialogueSelectionSwitchEvent | null
   setCurrentProviderId: (id: string) => void
   setCurrentModelId: (id: string) => void
   userManuallySetModelRef: React.MutableRefObject<boolean>
 }
 
+function applyResolvedToUi(resolved: ReturnType<typeof resolveDialogueModelSelection>): {
+  providerId: string
+  modelId: string
+} {
+  return {
+    providerId: resolved.providerId ?? UNCONFIGURED_DIALOGUE_MODEL_SENTINEL,
+    modelId: resolved.modelId ?? UNCONFIGURED_DIALOGUE_MODEL_SENTINEL
+  }
+}
+
 /**
  * 模型选择 Hook
  *
- * 职责：
- * 1. 根据助手/全局设置推导默认模型
- * 2. 支持用户手动切换模型
- * 3. 会话切换时重置手动标记
+ * 权威解析链：伙伴 → 用户手动选择 → 全局默认 → none（unknown 哨兵，不伪造默认模型）。
  */
 export function useModelSelection(params: UseModelSelectionParams): UseModelSelectionResult {
   const { sessionId, currentAssistant } = params
   const settings = useSettingsStore()
 
-  const providers = settings?.providers || []
-  const providerFallback = resolveProviderListDialogueFallback(providers)
-  const fallbackProviderId = providerFallback.providerId || 'unknown'
-  const fallbackModelId = providerFallback.modelId || 'unknown'
-
-  const initialResolved = resolveDialogueModelSelection({
-    globalDialogueProviderId: settings.globalModels?.globalDialogueProviderId,
-    globalDialogueModelId: settings.globalModels?.globalDialogueModelId,
-    fallbackProviderId,
-    fallbackModelId
-  })
+  const assistantId =
+    currentAssistant?.id != null ? String(currentAssistant.id) : undefined
 
   const [currentProviderId, setCurrentProviderId] = useState<string>(
-    initialResolved.providerId || fallbackProviderId
+    UNCONFIGURED_DIALOGUE_MODEL_SENTINEL
   )
   const [currentModelId, setCurrentModelId] = useState<string>(
-    initialResolved.modelId || fallbackModelId
+    UNCONFIGURED_DIALOGUE_MODEL_SENTINEL
   )
+  const [modelSelectionSource, setModelSelectionSource] =
+    useState<DialogueModelSelectionSource>('none')
+  const [selectionState, setSelectionState] = useState<AgentDialogueSelectionState>(() =>
+    buildAgentDialogueSelectionState({
+      assistantId,
+      resolved: { providerId: null, modelId: null, source: 'none' }
+    })
+  )
+  const [lastSelectionSwitch, setLastSelectionSwitch] =
+    useState<AgentDialogueSelectionSwitchEvent | null>(null)
+
   const userManuallySetModelRef = useRef<boolean>(false)
   const prevSessionIdRef = useRef<string | null>(null)
+  const selectionStateRef = useRef<AgentDialogueSelectionState>(selectionState)
+
+  const commitResolved = useCallback(
+    (resolved: ReturnType<typeof resolveDialogueModelSelection>) => {
+      const next = buildAgentDialogueSelectionState({ assistantId, resolved })
+      const switches = detectDialogueSelectionSwitches(selectionStateRef.current, next, sessionId)
+      selectionStateRef.current = next
+      setSelectionState(next)
+      setModelSelectionSource(resolved.source)
+      if (switches.length > 0) {
+        setLastSelectionSwitch(switches[switches.length - 1] ?? null)
+      }
+    },
+    [assistantId, sessionId]
+  )
 
   useEffect(() => {
     if (prevSessionIdRef.current !== sessionId) {
@@ -57,29 +92,56 @@ export function useModelSelection(params: UseModelSelectionParams): UseModelSele
     if (userManuallySetModelRef.current) return
 
     const resolved = resolveDialogueModelSelection({
-      assistantProviderId: (currentAssistant as any)?.providerId,
-      assistantModelId: (currentAssistant as any)?.modelId,
+      assistantProviderId: currentAssistant?.providerId,
+      assistantModelId: currentAssistant?.modelId,
       globalDialogueProviderId: settings.globalModels?.globalDialogueProviderId,
-      globalDialogueModelId: settings.globalModels?.globalDialogueModelId,
-      fallbackProviderId,
-      fallbackModelId
+      globalDialogueModelId: settings.globalModels?.globalDialogueModelId
     })
+    const ui = applyResolvedToUi(resolved)
+    setCurrentProviderId(ui.providerId)
+    setCurrentModelId(ui.modelId)
+    commitResolved(resolved)
+  }, [sessionId, currentAssistant, settings.globalModels, assistantId, commitResolved])
 
-    if (resolved.providerId && resolved.modelId) {
-      setCurrentProviderId(resolved.providerId)
-      setCurrentModelId(resolved.modelId)
-      return
-    }
+  useEffect(() => {
+    if (!userManuallySetModelRef.current) return
 
-    setCurrentProviderId(fallbackProviderId)
-    setCurrentModelId(fallbackModelId)
-  }, [sessionId, currentAssistant, settings.globalModels, fallbackProviderId, fallbackModelId])
+    const resolved = resolveDialogueModelSelection({
+      assistantProviderId: currentAssistant?.providerId,
+      assistantModelId: currentAssistant?.modelId,
+      requestedProviderId: currentProviderId,
+      requestedModelId: currentModelId,
+      globalDialogueProviderId: settings.globalModels?.globalDialogueProviderId,
+      globalDialogueModelId: settings.globalModels?.globalDialogueModelId
+    })
+    commitResolved(resolved)
+  }, [
+    currentProviderId,
+    currentModelId,
+    currentAssistant,
+    settings.globalModels,
+    assistantId,
+    commitResolved
+  ])
+
+  const setRequestedProviderId = useCallback((id: string) => {
+    userManuallySetModelRef.current = true
+    setCurrentProviderId(id)
+  }, [])
+
+  const setRequestedModelId = useCallback((id: string) => {
+    userManuallySetModelRef.current = true
+    setCurrentModelId(id)
+  }, [])
 
   return {
     currentProviderId,
     currentModelId,
-    setCurrentProviderId,
-    setCurrentModelId,
+    modelSelectionSource,
+    selectionState,
+    lastSelectionSwitch,
+    setCurrentProviderId: setRequestedProviderId,
+    setCurrentModelId: setRequestedModelId,
     userManuallySetModelRef
   }
 }

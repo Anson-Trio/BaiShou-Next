@@ -112,6 +112,188 @@ function notifySessionListeners(sessionId: string) {
   }
 }
 
+/** IPC 返回后兜底结束流式状态，避免 stream-finish 丢失导致输入框一直 loading */
+export function finishStreamingSession(sessionId: string, error?: string | null): void {
+  if (!sessionId) return
+  updateSessionState(sessionId, (state) => {
+    state.isStreaming = false
+    state.activeTool = null
+    if (error) state.error = error
+  })
+}
+
+function applyStreamFinishPayload(payload: any): void {
+  const sId = typeof payload === 'object' ? payload?.sessionId : null
+  if (!sId) {
+    if (payload?.error) {
+      for (const id of Object.keys(sessionStates)) {
+        if (sessionStates[id]?.isStreaming) {
+          updateSessionState(id, (state) => {
+            state.isStreaming = false
+            state.error = payload.error
+            state.activeTool = null
+          })
+        }
+      }
+    }
+    return
+  }
+  console.log('[Renderer Stream] stream-finish:', sId, 'payload:', JSON.stringify(payload))
+  updateSessionState(sId, (state) => {
+    state.isStreaming = false
+    if (payload?.error) {
+      state.error = payload.error
+    }
+    state.activeTool = null
+  })
+
+  if (payload?.messageId) {
+    window.dispatchEvent(
+      new CustomEvent('baishou:assistant-message-usage', {
+        detail: {
+          sessionId: sId,
+          messageId: payload.messageId,
+          inputTokens: payload.inputTokens,
+          outputTokens: payload.outputTokens,
+          cacheReadInputTokens: payload.cacheReadInputTokens,
+          cacheWriteInputTokens: payload.cacheWriteInputTokens,
+          costMicros: payload.costMicros
+        }
+      })
+    )
+  }
+}
+
+function ensureAgentStreamListenersRegistered(): void {
+  if (typeof window === 'undefined' || !window.electron?.ipcRenderer) return
+  if ((window as any).__baishou_stream_registered) return
+  ;(window as any).__baishou_stream_registered = true
+
+  window.electron.ipcRenderer.on('agent:stream-chunk', (_, payload: any) => {
+    const sId = typeof payload === 'object' ? payload?.sessionId : null
+    const chunk = typeof payload === 'object' ? payload?.chunk : payload
+    if (!sId) return
+    updateSessionState(sId, (state) => {
+      state.text += chunk
+    })
+  })
+
+  window.electron.ipcRenderer.on('agent:reasoning-chunk', (_, payload: any) => {
+    const sId = typeof payload === 'object' ? payload?.sessionId : null
+    const chunk = typeof payload === 'object' ? payload?.chunk : payload
+    if (!sId) return
+    updateSessionState(sId, (state) => {
+      state.reasoning += chunk
+    })
+  })
+
+  window.electron.ipcRenderer.on('agent:tool-start', (_, payload: any) => {
+    const sId = typeof payload === 'object' ? payload?.sessionId : null
+    if (!sId) return
+    const name = typeof payload === 'object' ? payload?.name : payload?.name
+    const args = typeof payload === 'object' ? payload?.args : payload?.args
+    updateSessionState(sId, (state) => {
+      state.activeToolStartTime = Date.now()
+      state.activeTool = { name, args }
+    })
+  })
+
+  window.electron.ipcRenderer.on('agent:tool-result', (_, payload: any) => {
+    const sId = typeof payload === 'object' ? payload?.sessionId : null
+    if (!sId) return
+    const name = typeof payload === 'object' ? payload?.name : payload?.name
+    updateSessionState(sId, (state) => {
+      const start = state.activeToolStartTime || Date.now()
+      const durationMs = Date.now() - start
+      state.completedTools.push({ name, startTime: start, durationMs })
+      state.activeTool = null
+    })
+  })
+
+  window.electron.ipcRenderer.on('agent:stream-finish', (_, payload: any) => {
+    applyStreamFinishPayload(payload)
+  })
+
+  window.electron.ipcRenderer.on('agent:compression-event', (_, event: any) => {
+    const sId = event?.sessionId
+    if (!sId || !event?.type) return
+
+    if (event.type === 'reasoning-delta' || event.type === 'delta') {
+      updateSessionState(
+        sId,
+        (state) => {
+          if (event.type === 'reasoning-delta') {
+            state.compressionReasoning += event.chunk ?? ''
+          } else {
+            state.compressionText += event.chunk ?? ''
+          }
+        },
+        { notify: false }
+      )
+      scheduleCompressionDeltaNotify(sId)
+    } else {
+      updateSessionState(sId, (state) => {
+        if (event.type === 'start') {
+          state.isCompressing = true
+          state.compressionPhase = event.phase === 'manual' ? 'manual' : 'auto'
+          state.compressionText = ''
+          state.compressionReasoning = ''
+          state.compressionTriggerMessageId =
+            typeof event.triggerUserMessageId === 'string' ? event.triggerUserMessageId : null
+        } else if (event.type === 'finish') {
+          state.isCompressing = false
+          if (!event.ok) {
+            state.compressionText = ''
+            state.compressionReasoning = ''
+            state.compressionTriggerMessageId = null
+          }
+        }
+      })
+    }
+
+    if (event.type === 'finish' && event.ok) {
+      window.dispatchEvent(
+        new CustomEvent('baishou:compression-finished', {
+          detail: { sessionId: sId }
+        })
+      )
+    }
+  })
+
+  window.addEventListener('baishou:compression-stream-reset', (e: Event) => {
+    const detail = (e as CustomEvent<{ sessionId?: string }>).detail
+    const sId = detail?.sessionId
+    if (!sId) return
+    updateSessionState(sId, (state) => {
+      state.compressionText = ''
+      state.compressionReasoning = ''
+      state.compressionTriggerMessageId = null
+    })
+  })
+
+  const onAgentGateAsked = (_: unknown, request: AgentGateRequest) => {
+    if (!request?.sessionId) return
+    updateSessionState(request.sessionId, (state) => {
+      state.pendingAgentGate = request
+      state.isAgentGateReplying = false
+    })
+  }
+
+  const onAgentGateReplied = (_: unknown, payload: { sessionId?: string; requestId?: string }) => {
+    const sId = payload?.sessionId
+    if (!sId) return
+    updateSessionState(sId, (state) => {
+      if (state.pendingAgentGate?.id === payload.requestId) {
+        state.pendingAgentGate = null
+        state.isAgentGateReplying = false
+      }
+    })
+  }
+
+  window.api?.agentGate?.onAsked((request) => onAgentGateAsked(null, request))
+  window.api?.agentGate?.onReplied((payload) => onAgentGateReplied(null, payload))
+}
+
 function scheduleCompressionDeltaNotify(sessionId: string) {
   if (compressionDeltaNotifyTimers[sessionId]) return
 
@@ -135,6 +317,7 @@ function updateSessionState(
 }
 
 export function useAgentStream(currentSessionId?: string): UseAgentStreamResult {
+  ensureAgentStreamListenersRegistered()
   const [, setVersion] = useState(0)
   const sessionIdRef = useRef(currentSessionId)
 
@@ -159,180 +342,6 @@ export function useAgentStream(currentSessionId?: string): UseAgentStreamResult 
       }
     }
   }, [currentSessionId])
-
-  // 全局唯一的一组 IPC 监听器：负责分发所有来自后端的流数据到对应 sessionStates
-  useEffect(() => {
-    if (typeof window === 'undefined' || !window.electron || !window.electron.ipcRenderer) return
-
-    if ((window as any).__baishou_stream_registered) return
-    ;(window as any).__baishou_stream_registered = true
-
-    window.electron.ipcRenderer.on('agent:stream-chunk', (_, payload: any) => {
-      const sId = typeof payload === 'object' ? payload?.sessionId : null
-      const chunk = typeof payload === 'object' ? payload?.chunk : payload
-      if (!sId) return
-      console.log('[Renderer Stream] stream-chunk:', sId, 'chunkLength:', chunk?.length)
-      updateSessionState(sId, (state) => {
-        state.text += chunk
-      })
-    })
-
-    window.electron.ipcRenderer.on('agent:reasoning-chunk', (_, payload: any) => {
-      const sId = typeof payload === 'object' ? payload?.sessionId : null
-      const chunk = typeof payload === 'object' ? payload?.chunk : payload
-      if (!sId) return
-      console.log('[Renderer Stream] reasoning-chunk:', sId, 'chunkLength:', chunk?.length)
-      updateSessionState(sId, (state) => {
-        state.reasoning += chunk
-      })
-    })
-
-    window.electron.ipcRenderer.on('agent:tool-start', (_, payload: any) => {
-      const sId = typeof payload === 'object' ? payload?.sessionId : null
-      if (!sId) return
-      const name = typeof payload === 'object' ? payload?.name : payload?.name
-      const args = typeof payload === 'object' ? payload?.args : payload?.args
-      console.log('[Renderer Stream] tool-start:', sId, 'name:', name)
-      updateSessionState(sId, (state) => {
-        state.activeToolStartTime = Date.now()
-        state.activeTool = { name, args }
-      })
-    })
-
-    window.electron.ipcRenderer.on('agent:tool-result', (_, payload: any) => {
-      const sId = typeof payload === 'object' ? payload?.sessionId : null
-      if (!sId) return
-      const name = typeof payload === 'object' ? payload?.name : payload?.name
-      console.log('[Renderer Stream] tool-result:', sId, 'name:', name)
-      updateSessionState(sId, (state) => {
-        const start = state.activeToolStartTime || Date.now()
-        const durationMs = Date.now() - start
-        state.completedTools.push({ name, startTime: start, durationMs })
-        state.activeTool = null
-      })
-    })
-
-    window.electron.ipcRenderer.on('agent:stream-finish', (_, payload: any) => {
-      const sId = typeof payload === 'object' ? payload?.sessionId : null
-      if (!sId) return
-      console.log('[Renderer Stream] stream-finish:', sId, 'payload:', JSON.stringify(payload))
-      updateSessionState(sId, (state) => {
-        state.isStreaming = false
-        if (payload?.error) {
-          state.error = payload.error
-        }
-        state.activeTool = null
-      })
-
-      if (payload?.messageId) {
-        window.dispatchEvent(
-          new CustomEvent('baishou:assistant-message-usage', {
-            detail: {
-              sessionId: sId,
-              messageId: payload.messageId,
-              inputTokens: payload.inputTokens,
-              outputTokens: payload.outputTokens,
-              cacheReadInputTokens: payload.cacheReadInputTokens,
-              cacheWriteInputTokens: payload.cacheWriteInputTokens,
-              costMicros: payload.costMicros
-            }
-          })
-        )
-      }
-    })
-
-    window.electron.ipcRenderer.on('agent:compression-event', (_, event: any) => {
-      const sId = event?.sessionId
-      if (!sId || !event?.type) return
-
-      if (event.type === 'reasoning-delta' || event.type === 'delta') {
-        updateSessionState(
-          sId,
-          (state) => {
-            if (event.type === 'reasoning-delta') {
-              state.compressionReasoning += event.chunk ?? ''
-            } else {
-              state.compressionText += event.chunk ?? ''
-            }
-          },
-          { notify: false }
-        )
-        scheduleCompressionDeltaNotify(sId)
-      } else {
-        updateSessionState(sId, (state) => {
-          if (event.type === 'start') {
-            state.isCompressing = true
-            state.compressionPhase = event.phase === 'manual' ? 'manual' : 'auto'
-            state.compressionText = ''
-            state.compressionReasoning = ''
-            state.compressionTriggerMessageId =
-              typeof event.triggerUserMessageId === 'string' ? event.triggerUserMessageId : null
-          } else if (event.type === 'finish') {
-            state.isCompressing = false
-            if (!event.ok) {
-              state.compressionText = ''
-              state.compressionReasoning = ''
-              state.compressionTriggerMessageId = null
-            }
-          }
-        })
-      }
-
-      if (event.type === 'finish' && event.ok) {
-        window.dispatchEvent(
-          new CustomEvent('baishou:compression-finished', {
-            detail: { sessionId: sId }
-          })
-        )
-      }
-    })
-
-    const onCompressionStreamReset = (e: Event) => {
-      const detail = (e as CustomEvent<{ sessionId?: string }>).detail
-      const sId = detail?.sessionId
-      if (!sId) return
-      updateSessionState(sId, (state) => {
-        state.compressionText = ''
-        state.compressionReasoning = ''
-        state.compressionTriggerMessageId = null
-      })
-    }
-
-    window.addEventListener('baishou:compression-stream-reset', onCompressionStreamReset)
-
-    const onAgentGateAsked = (_: unknown, request: AgentGateRequest) => {
-      if (!request?.sessionId) return
-      updateSessionState(request.sessionId, (state) => {
-        state.pendingAgentGate = request
-        state.isAgentGateReplying = false
-      })
-    }
-
-    const onAgentGateReplied = (
-      _: unknown,
-      payload: { sessionId?: string; requestId?: string }
-    ) => {
-      const sId = payload?.sessionId
-      if (!sId) return
-      updateSessionState(sId, (state) => {
-        if (state.pendingAgentGate?.id === payload.requestId) {
-          state.pendingAgentGate = null
-          state.isAgentGateReplying = false
-        }
-      })
-    }
-
-    const unsubscribeAsked = window.api.agentGate.onAsked((request) => onAgentGateAsked(null, request))
-    const unsubscribeReplied = window.api.agentGate.onReplied((payload) =>
-      onAgentGateReplied(null, payload)
-    )
-
-    return () => {
-      window.removeEventListener('baishou:compression-stream-reset', onCompressionStreamReset)
-      unsubscribeAsked()
-      unsubscribeReplied()
-    }
-  }, [])
 
   const saveUserMessage = useCallback(
     async (
