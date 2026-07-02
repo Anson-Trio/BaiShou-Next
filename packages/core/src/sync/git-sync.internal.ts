@@ -213,7 +213,11 @@ export abstract class GitSyncInternalBase {
       .filter(Boolean)
   }
 
-  protected async runGitWithStdin(_git: SimpleGit, args: string[], stdin?: Buffer): Promise<string> {
+  protected async runGitWithStdin(
+    _git: SimpleGit,
+    args: string[],
+    stdin?: Buffer
+  ): Promise<string> {
     const gitRoot = await this.getGitRoot()
     const { env, gitBinary } = getBundledGitSpawnEnv({ LC_ALL: 'C.UTF-8' })
     return new Promise((resolve, reject) => {
@@ -402,7 +406,10 @@ export abstract class GitSyncInternalBase {
       chunkChars = 0
       try {
         if (current.length === 1) {
-          await git.add(current[0])
+          const singleFile = current[0]
+          if (singleFile) {
+            await git.add(singleFile)
+          }
         } else {
           await git.add(['--', ...current])
         }

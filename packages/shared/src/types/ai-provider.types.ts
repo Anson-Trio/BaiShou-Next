@@ -27,6 +27,25 @@ export enum WebSearchMode {
   Tool = 'tool'
 }
 
+/**
+ * AI 模型高级配置参数
+ * 所有参数均为可选，未配置时使用提供商 SDK 默认值
+ */
+export interface AiProviderAdvancedConfig {
+  /** 温度系数 (0-2)，控制输出随机性 */
+  temperature?: number
+  /** Top-K 采样 (1-100)，限制候选词汇数量 */
+  topK?: number
+  /** Top-P 采样 (0-1)，核采样阈值 */
+  topP?: number
+  /** 最大生成 token 数 (1-32000) */
+  maxTokens?: number
+  /** 频率惩罚 (-2.0 - 2.0)，降低重复词频 */
+  frequencyPenalty?: number
+  /** 存在惩罚 (-2.0 - 2.0)，降低重复主题 */
+  presencePenalty?: number
+}
+
 export interface AiProviderModel {
   id: string
   name: string
@@ -42,6 +61,8 @@ export interface AiProviderModel {
   isSystem: boolean
   sortOrder: number
   webSearchMode: WebSearchMode
+  /** 高级模型配置参数（可选） */
+  advancedConfig?: AiProviderAdvancedConfig
 }
 
 /**
