@@ -19,5 +19,14 @@ export const agentMessagesTable = sqliteTable('agent_messages', {
   cacheReadInputTokens: integer('cache_read_input_tokens'),
   cacheWriteInputTokens: integer('cache_write_input_tokens'),
   costMicros: integer('cost_micros'),
-  createdAt: integer('created_at', { mode: 'timestamp' }).notNull().defaultNow()
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull().defaultNow(),
+  // 主动互动相关字段
+  isProactive: integer('is_proactive', { mode: 'boolean' }).default(false),
+  triggerId: text('trigger_id'),
+  triggerType: text('trigger_type', {
+    enum: ['time_greeting', 'diary_response', 'silence_reminder', 'sentiment_care']
+  }),
+  userFeedback: text('user_feedback', {
+    enum: ['positive', 'neutral', 'negative', 'dismissed']
+  })
 })

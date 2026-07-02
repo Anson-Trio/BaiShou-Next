@@ -1,0 +1,84 @@
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "auto-snapshot-history",
+  "prevId": "eminent_purple_man",
+  "tables": {
+    "auto_snapshot_history": {
+      "name": "auto_snapshot_history",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "session_id": {
+          "name": "session_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "snapshot_id": {
+          "name": "snapshot_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "message_count": {
+          "name": "message_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_auto_snapshot_session": {
+          "name": "idx_auto_snapshot_session",
+          "columns": ["session_id"],
+          "isUnique": false
+        },
+        "idx_auto_snapshot_snapshot": {
+          "name": "idx_auto_snapshot_snapshot",
+          "columns": ["snapshot_id"],
+          "isUnique": false
+        },
+        "idx_auto_snapshot_created": {
+          "name": "idx_auto_snapshot_created",
+          "columns": ["created_at"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "auto_snapshot_history_session_id_agent_sessions_id_fk": {
+          "name": "auto_snapshot_history_session_id_agent_sessions_id_fk",
+          "tableFrom": "auto_snapshot_history",
+          "tableTo": "agent_sessions",
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    }
+  },
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  }
+}
