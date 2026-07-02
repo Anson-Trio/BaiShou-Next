@@ -47,6 +47,7 @@ export { signS3Request, s3FetchHeaders } from './utils/aws-v4-sign'
 export * from './utils/s3-list.util'
 export * from './utils/s3-url'
 export * from './utils/cloud-sync-config.util'
+export { DEFAULT_MIDWAY_APPEND_PROMPT } from './constants/midway-append-template'
 export {
   isIncrementalSyncReady,
   getRootIncrementalSyncConfigPath,
@@ -184,9 +185,7 @@ export {
   type IncrementalSyncConfirmReplanResult
 } from './sync/incremental-sync-confirm-replan.util'
 export { isIncrementalSyncRemoteFileNotFoundError } from './sync/sync-download-errors.util'
-export {
-  SYNC_MANIFEST_REMOVED_MAX_ENTRIES,
-} from './constants/incremental-sync.constants'
+export { SYNC_MANIFEST_REMOVED_MAX_ENTRIES } from './constants/incremental-sync.constants'
 export {
   applySyncDecisionRemovedSideEffects,
   clearSyncManifestRemoved,
