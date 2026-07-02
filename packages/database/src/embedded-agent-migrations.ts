@@ -15,6 +15,20 @@ export const EMBEDDED_AGENT_MIGRATIONS: EmbeddedMigrations = {
         when: 1781510528245,
         tag: '0000_agent_schema',
         breakpoints: true
+      },
+      {
+        idx: 1,
+        version: '6',
+        when: 1782822702200,
+        tag: '0001_eminent_purple_man',
+        breakpoints: true
+      },
+      {
+        idx: 2,
+        version: '6',
+        when: 1783075680000,
+        tag: '0002_auto_snapshot_history',
+        breakpoints: true
       }
     ]
   },
@@ -133,6 +147,26 @@ CREATE TABLE \`memory_embeddings\` (
 	\`source_created_at\` integer
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX \`memory_embeddings_embedding_id_unique\` ON \`memory_embeddings\` (\`embedding_id\`);`
+CREATE UNIQUE INDEX \`memory_embeddings_embedding_id_unique\` ON \`memory_embeddings\` (\`embedding_id\`);`,
+    '0001_eminent_purple_man': `ALTER TABLE \`agent_assistants\` ADD \`assistant_kind\` text DEFAULT 'companion' NOT NULL;--> statement-breakpoint
+ALTER TABLE \`agent_messages\` ADD \`is_proactive\` integer DEFAULT false;--> statement-breakpoint
+ALTER TABLE \`agent_messages\` ADD \`trigger_id\` text;--> statement-breakpoint
+ALTER TABLE \`agent_messages\` ADD \`trigger_type\` text;--> statement-breakpoint
+ALTER TABLE \`agent_messages\` ADD \`user_feedback\` text;`,
+    '0002_auto_snapshot_history': `-- Auto-Snapshot 历史记录表
+-- 追踪已快照的压缩记录,防止重复触发
+CREATE TABLE \`auto_snapshot_history\` (
+  \`id\` text PRIMARY KEY NOT NULL,
+  \`session_id\` text NOT NULL,
+  \`snapshot_id\` text,
+  \`message_count\` integer NOT NULL,
+  \`created_at\` integer NOT NULL,
+  FOREIGN KEY (\`session_id\`) REFERENCES \`agent_sessions\`(\`id\`) ON DELETE cascade
+);
+
+-- 索引优化查询性能
+CREATE INDEX \`idx_auto_snapshot_session\` ON \`auto_snapshot_history\` (\`session_id\`);
+CREATE INDEX \`idx_auto_snapshot_snapshot\` ON \`auto_snapshot_history\` (\`snapshot_id\`);
+CREATE INDEX \`idx_auto_snapshot_created\` ON \`auto_snapshot_history\` (\`created_at\` DESC);`
   }
 }

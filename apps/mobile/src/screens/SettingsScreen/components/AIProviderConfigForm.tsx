@@ -5,6 +5,7 @@ import { useNativeTheme, useNativeToast, useDialog, Switch, Input } from '@baish
 import { AIProviderConfig } from '@baishou/shared'
 import { useBaishou } from '../../../providers/BaishouProvider'
 import { ProviderBrandIcon } from './ProviderBrandIcon'
+import { AdvancedModelConfigSection } from './AdvancedModelConfigSection'
 import {
   buildAndCacheProviderListItems,
   computeSortOrderOnEnable,
@@ -337,6 +338,12 @@ export const AIProviderConfigForm: React.FC<AIProviderConfigFormProps> = ({
           )}
         </TouchableOpacity>
       </View>
+
+      {/* Advanced Model Config */}
+      <AdvancedModelConfigSection
+        value={activeConfig.advancedConfig}
+        onChange={(advancedConfig) => persistProvider({ advancedConfig })}
+      />
 
       {(activeConfig.models?.length ?? 0) > 0 && (
         <>

@@ -178,6 +178,11 @@ async function completeFullBootstrap() {
       const { bootstrapMcpServer } = await import('./services/mcp-runtime')
       await bootstrapMcpServer()
 
+      // 启动自动快照服务
+      const { DesktopAutoSnapshotService } = await import('./services/auto-snapshot.service')
+      const autoSnapshotService = new DesktopAutoSnapshotService(getAppDb())
+      await autoSnapshotService.start()
+
       // 通知渲染进程引导已就绪，可以跳转了
       mainWindow.webContents.send('onboarding:ready')
     }

@@ -14,6 +14,7 @@ import {
 import styles from './AIModelServicesView.module.css'
 import { Switch } from '../Switch/Switch'
 import { HelpTooltip } from '../HelpTooltip'
+import { AdvancedModelConfigSection } from './AdvancedModelConfigSection'
 import type { AIModelServicesViewModel } from './useAIModelServicesView'
 
 export interface AIModelServicesConfigPaneProps {
@@ -165,6 +166,18 @@ export const AIModelServicesConfigPane: React.FC<AIModelServicesConfigPaneProps>
               </span>
             </button>
           </div>
+
+          {/* Advanced Config Section */}
+          <AdvancedModelConfigSection
+            value={localFormData.advancedConfig}
+            onChange={(advancedConfig) =>
+              setLocalFormData({
+                ...localFormData,
+                advancedConfig
+              })
+            }
+            t={t}
+          />
 
           {/* ProviderModelList Section */}
           <div className={styles.modelListSection}>

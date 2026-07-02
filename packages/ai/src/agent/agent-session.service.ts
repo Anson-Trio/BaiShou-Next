@@ -318,6 +318,9 @@ export class AgentSessionService {
         baseUrl: provider.config?.baseUrl
       }
 
+      // 从提供商配置中提取高级参数
+      const advancedConfig = provider.config?.advancedConfig || {}
+
       const streamResult = await streamText({
         model,
         messages: messagesForModel,
@@ -325,6 +328,13 @@ export class AgentSessionService {
         tools: enabledTools,
         stopWhen: stepCountIs(10),
         abortSignal,
+        // 高级模型参数（可选）
+        temperature: advancedConfig.temperature,
+        topK: advancedConfig.topK,
+        topP: advancedConfig.topP,
+        maxOutputTokens: advancedConfig.maxTokens,
+        frequencyPenalty: advancedConfig.frequencyPenalty,
+        presencePenalty: advancedConfig.presencePenalty,
         ...(hasSegmenter && cjkSegmenter
           ? { experimental_transform: smoothStream({ chunking: cjkSegmenter }) }
           : {})
